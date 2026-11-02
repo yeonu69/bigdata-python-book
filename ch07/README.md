@@ -13,15 +13,8 @@
 
 | 파일 | 쓰는 곳 | 크기 | 내용과 출처 | 읽을 때 |
 |---|---|---|---|---|
+| [`Significant_Earthquakes.csv`](data/Significant_Earthquakes.csv) | 본문 | 21.1MB | 전 세계 규모 5 이상 지진(미국지질조사국 USGS, 1900년~). Kaggle Significant Earthquakes의 깃허브 사본([원래 주소](https://raw.githubusercontent.com/Abdullah-Moataz/Earthquakes/cf0d033d35f5d45eef6175bab6c60829363d6de4/Significant_Earthquakes.csv))을 그대로 복사, 마지막 사건 2026-09-27 | `index_col=0` |
 | [`서울지하철_역별_시간대별_월평균_승하차_2024.csv`](data/%EC%84%9C%EC%9A%B8%EC%A7%80%ED%95%98%EC%B2%A0_%EC%97%AD%EB%B3%84_%EC%8B%9C%EA%B0%84%EB%8C%80%EB%B3%84_%EC%9B%94%ED%8F%89%EA%B7%A0_%EC%8A%B9%ED%95%98%EC%B0%A8_2024.csv) | 미니 프로젝트 | 1.9MB | 서울교통공사 역별 일별 시간대별 승하차인원 2024를 역·월·날종류별 평균으로 정리 |  |
-
-## 인터넷에서 바로 읽는 데이터
-
-아래 데이터는 이 저장소에 넣지 않았습니다. 노트북이 원래 주소에서 바로 읽습니다.
-
-| 파일 | 쓰는 곳 | 크기 | 내용과 출처 | 주소 |
-|---|---|---|---|---|
-| Significant_Earthquakes.csv | 본문 | 21.1MB | USGS 기반 Kaggle Significant Earthquakes의 깃허브 사본 (마지막 사건 2026-09-27) | [바로 가기](https://raw.githubusercontent.com/Abdullah-Moataz/Earthquakes/cf0d033d35f5d45eef6175bab6c60829363d6de4/Significant_Earthquakes.csv) |
 
 ## 파이썬 파일로 실행하기
 
