@@ -19,11 +19,18 @@ except ImportError:                        # 나눔고딕 파일이 이미 있�
     plt.rcParams["font.family"] = "NanumGothic"
 plt.rcParams["axes.unicode_minus"] = False
 
+USE_KAGGLE = True        # 캐글 파일에는 새 지진이 더해질 수 있다. 책과 똑같은 숫자를 보려면 False로
 DATA = "Significant_Earthquakes.csv"
-URL = ("https://raw.githubusercontent.com/Abdullah-Moataz/Earthquakes/"
-       "cf0d033d35f5d45eef6175bab6c60829363d6de4/Significant_Earthquakes.csv")
-if not os.path.exists(DATA):                       # 파일이 없을 때만 내려받기(약 21MB)
-    urllib.request.urlretrieve(URL, DATA)
+if USE_KAGGLE and not os.path.exists(DATA):        # ① 캐글에서 받기(약 21MB)
+    try:
+        import kagglehub
+        path = kagglehub.dataset_download("usamabuttar/significant-earthquakes")
+        DATA = os.path.join(path, "Significant_Earthquakes.csv")
+    except Exception as e:
+        print("캐글에서 받지 못했습니다:", type(e).__name__)
+if not os.path.exists(DATA):                       # ② 안 되면 책 깃허브 저장소의 같은 파일
+    urllib.request.urlretrieve("https://raw.githubusercontent.com/yeonu69/bigdata-python-book/"
+                               "main/ch07/data/Significant_Earthquakes.csv", DATA)
 
 df = pd.read_csv(DATA, index_col=0)                # 첫 열은 행 번호
 print("처음 읽은 행:", len(df), " 같은 id가 다시 나온 행:", df["id"].duplicated().sum())
@@ -54,6 +61,30 @@ plt.xlabel("연대")
 plt.ylabel("기록된 지진 수")
 plt.xticks(rotation=45)
 plt.show()
+
+import geopandas as gpd                            # 지도 데이터를 다루는 판다스
+land = gpd.read_file("https://raw.githubusercontent.com/nvkelso/natural-earth-vector/"
+                     "v5.1.2/geojson/ne_110m_land.geojson")      # 육지 경계(Natural Earth)
+
+def world_map(title="", ax=None):                  # 회색 대륙을 깔아 둔 지도
+    if ax is None:
+        ax = plt.subplots(figsize=(8, 4.2))[1]
+    land.plot(ax=ax, color="#ececec", edgecolor="#9a9a9a", linewidth=0.5)
+    ax.set_xlim(-180, 180)
+    ax.set_ylim(-90, 90)
+    ax.set_xlabel("경도")
+    ax.set_ylabel("위도")
+    ax.set_title(title)
+    return ax
+
+ax = world_map("규모 5 이상 지진의 진앙")
+ax.scatter(eq["longitude"], eq["latitude"], s=0.5, color="#E04B3C", alpha=0.3)
+plt.show()
+
+cell = (eq["latitude"] // 5).astype(int).astype(str) + "," + (eq["longitude"] // 5).astype(int).astype(str)
+cnt = cell.value_counts()                          # 위도·경도 5도 칸(36 × 72 = 2,592칸)마다 지진 수
+half = (cnt.cumsum() < len(eq) / 2).sum() + 1      # 많은 칸부터 더해 절반을 채우는 칸 수
+print("지진이 난 칸:", len(cnt), "/ 2592  지진 절반이 몰린 칸:", half, "칸")
 
 # ### 7-2
 print(eq[["depth", "mag"]].describe().round(2))
@@ -157,6 +188,16 @@ plt.ylabel("규모")
 plt.legend(markerscale=3)
 plt.show()
 
+fig, axes = plt.subplots(3, 1, figsize=(8, 12))   # 유형마다 지도 한 장
+for ax, g in zip(axes, COLOR):
+    part = eq[eq["군집"] == g]
+    world_map(f"{g} ({len(part):,}건)", ax=ax)
+    ax.scatter(part["longitude"], part["latitude"], s=1, color=COLOR[g], alpha=0.5)
+plt.tight_layout()
+plt.show()
+lon = eq.loc[eq["군집"] == "C 깊은", "longitude"]
+print("C 가운데 동경 100도~서경 170도(태평양 서쪽):", round(((lon >= 100) | (lon <= -170)).mean() * 100, 1), "%")
+
 # ### 7-6
 from sklearn.metrics import silhouette_score
 
@@ -243,6 +284,12 @@ size = big[big.zone >= 0].groupby("zone").agg(n=("mag", "size"),
 print(size.sort_values("n", ascending=False).head(5).to_string(index=False))
 biggest = size["n"].idxmax()                       # 가장 큰 지대에는 어느 지역이?
 print(big.loc[big.zone == biggest, "region"].value_counts().head(3).to_dict())
+
+ax = world_map("DBSCAN 밀집 지대 (규모 6 이상)")
+noise, zone = big[big.zone < 0], big[big.zone >= 0]
+ax.scatter(noise["longitude"], noise["latitude"], s=3, color="#9a9a9a")     # 노이즈는 회색
+ax.scatter(zone["longitude"], zone["latitude"], s=5, c=zone["zone"], cmap="tab20")
+plt.show()
 
 # ### S6-1
 # 6.1 시작점에 따라 달라지는 답 (k = 5, 한 번씩만 돌리기)
@@ -388,3 +435,8 @@ sizes = pd.Series(lab[lab >= 0]).value_counts()
 print("밀집 지대:", len(sizes), "곳, 가장 큰 지대:", sizes.iloc[0], "건,",
       "노이즈:", round((lab == -1).mean() * 100, 1), "%")
 print("가장 큰 지대의 지역:", big["region"][lab == sizes.index[0]].value_counts().head(4).to_dict())
+ax = world_map("반지름 200km, 15개로 바꾼 뒤 가장 큰 지대")
+ax.scatter(big["longitude"], big["latitude"], s=2, color="#b0b0b0")
+one = big[lab == sizes.index[0]]
+ax.scatter(one["longitude"], one["latitude"], s=4, color="#E04B3C")
+plt.show()
