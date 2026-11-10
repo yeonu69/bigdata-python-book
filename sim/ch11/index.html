@@ -1,0 +1,529 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>
+<title>텍스트 분석 시뮬레이터</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@400;600;800&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* 레이아웃: 모눈종이 위 그래프(왼쪽)와 계산 노트(오른쪽). 좁으면 위아래로 쌓인다. */
+:root{
+  --bg:#f5f6f3; --paper:#ffffff; --grid:#e3e7e1; --grid2:#cfd6cd; --ink:#1f2a24; --muted:#5d6b63;
+  --line:#c8234b; --line-soft:rgba(200,35,75,.14); --pt:#24527a; --pt-soft:rgba(36,82,122,.18);
+  --mean:#8a6d1d; --mine:#2f8f5b; --band:rgba(36,82,122,.10); --sq:rgba(200,35,75,.13);
+  --chip:#eef1ec; --border:#d5dbd3;
+  --f-head:"Gothic A1","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --f-body:"Gothic A1","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141917; --paper:#1b211e; --grid:#27302b; --grid2:#33403a; --ink:#e6ece7; --muted:#9aa9a0;
+  --line:#ff5c7f; --line-soft:rgba(255,92,127,.18); --pt:#7fb6e6; --pt-soft:rgba(127,182,230,.2);
+  --mean:#d8b45a; --mine:#5fd394; --band:rgba(127,182,230,.12); --sq:rgba(255,92,127,.16);
+  --chip:#232b27; --border:#34403a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141917; --paper:#1b211e; --grid:#27302b; --grid2:#33403a; --ink:#e6ece7; --muted:#9aa9a0;
+  --line:#ff5c7f; --line-soft:rgba(255,92,127,.18); --pt:#7fb6e6; --pt-soft:rgba(127,182,230,.2);
+  --mean:#d8b45a; --mine:#5fd394; --band:rgba(127,182,230,.12); --sq:rgba(255,92,127,.16);
+  --chip:#232b27; --border:#34403a; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+header h1{font-family:var(--f-head);font-weight:800;font-size:1.65rem;margin:0;letter-spacing:-.01em;text-wrap:balance}
+header p{margin:4px 0 0;color:var(--muted);max-width:70ch}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;border-bottom:1px solid var(--border);padding-bottom:8px}
+.tab{font:600 .95rem var(--f-body);border:1px solid var(--border);background:var(--paper);color:var(--ink);
+  padding:7px 14px;border-radius:8px;cursor:pointer}
+.tab[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tab:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--line);outline-offset:2px}
+.panel{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:860px){.panel{grid-template-columns:minmax(0,1fr)}}
+.stage{background:var(--paper);border:1px solid var(--border);border-radius:10px;padding:10px;min-width:0}
+.stage svg,.stage canvas{display:block;width:100%;height:auto;touch-action:none;user-select:none}
+.hint{font-size:.85rem;color:var(--muted);margin:6px 4px 0}
+.side{display:flex;flex-direction:column;gap:14px;min-width:0}
+.card{background:var(--paper);border:1px solid var(--border);border-radius:10px;padding:14px 16px;min-width:0}
+.card h2{font:800 1rem var(--f-head);margin:0 0 8px}
+.eq{font-family:var(--f-num);font-size:1.25rem;font-weight:600;color:var(--line);overflow-x:auto;white-space:nowrap}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px;margin-top:10px}
+.stat{display:flex;flex-direction:column;border-top:1px solid var(--grid2);padding-top:6px}
+.stat b{font:600 .78rem var(--f-body);color:var(--muted);letter-spacing:.02em}
+.stat span{font:600 1.1rem var(--f-num);font-variant-numeric:tabular-nums}
+.read{font-size:.92rem;margin:10px 0 0}
+.row{display:flex;flex-wrap:wrap;gap:6px}
+button.b{font:600 .85rem var(--f-body);border:1px solid var(--border);background:var(--chip);color:var(--ink);
+  padding:6px 11px;border-radius:7px;cursor:pointer}
+button.b:hover{border-color:var(--ink)}
+button.b.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+label.sl{display:grid;grid-template-columns:7.5em minmax(0,1fr) 4.2em;gap:8px;align-items:center;font-size:.88rem;margin:4px 0}
+label.sl output{font-family:var(--f-num);text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--line)}
+.chk{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.88rem;margin-top:8px}
+.chk label{display:flex;gap:5px;align-items:center;cursor:pointer}
+details{font-size:.9rem}
+details summary{cursor:pointer;font-weight:600}
+.calc{font-family:var(--f-num);font-size:.82rem;background:var(--chip);border-radius:7px;padding:10px;margin-top:8px;overflow-x:auto;white-space:pre;line-height:1.55}
+.box{background:var(--chip);border-radius:8px;padding:10px 12px;font-size:.88rem}
+.box strong{display:block;margin-bottom:2px}
+table.t{border-collapse:collapse;width:100%;font-size:.88rem}
+table.t th,table.t td{border-bottom:1px solid var(--grid2);padding:5px 6px;text-align:right;font-variant-numeric:tabular-nums}
+table.t th:first-child,table.t td:first-child{text-align:left}
+table.t td{font-family:var(--f-num)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.8rem;color:var(--muted);margin:6px 4px 0}
+.legend i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:4px}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (max-width:520px){.two{grid-template-columns:minmax(0,1fr)}}
+svg text{font-family:var(--f-body)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<style>
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.chips button{font:600 .82rem var(--f-body);border:1px solid var(--border);background:var(--paper);color:var(--ink);padding:4px 9px;border-radius:999px;cursor:pointer}
+.chips button small{font:500 .72rem var(--f-num);color:var(--muted);margin-left:3px}
+.chips button.on.s{background:var(--line);border-color:var(--line);color:#fff}
+.chips button.on.h{background:var(--pt);border-color:var(--pt);color:#fff}
+.chips button.on small{color:#fff}
+.sub{font-size:.8rem;color:var(--muted);margin:8px 0 0}
+select.sel{font:600 .88rem var(--f-body);padding:5px 8px;border-radius:7px;border:1px solid var(--border);background:var(--paper);color:var(--ink);max-width:100%}
+input.doc{width:100%;font:500 .95rem var(--f-body);padding:5px 8px;border-radius:7px;border:1px solid var(--border);background:var(--paper);color:var(--ink)}
+.docs{display:grid;grid-template-columns:2.4em minmax(0,1fr);gap:5px 6px;align-items:center;font:600 .85rem var(--f-num)}
+.tw{overflow-x:auto;margin-top:6px}
+table.m{border-collapse:collapse;font-size:.85rem;min-width:100%}
+table.m th,table.m td{border:1px solid var(--grid2);padding:4px 7px;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+table.m th{font-weight:600;background:var(--chip)}
+table.m th:first-child{text-align:left}
+table.m td{font-family:var(--f-num)}
+table.m tr.idf td{color:var(--line);font-weight:600}
+table.m .zero{color:var(--muted);background:var(--grid)}
+table.m td.hot{cursor:pointer}
+.cap{font:800 .92rem var(--f-head);margin:12px 2px 2px}
+.mono{font-family:var(--f-num)}
+</style>
+
+<div class="wrap">
+<header>
+  <h1>텍스트 분석 시뮬레이터</h1>
+  <p>『빅데이터분석 with 파이썬』 11장 「리뷰 속 마음 읽기: 텍스트 분석과 언어 AI」의 개념을 손으로 움직여 봅니다. 글을 고치면 TF-IDF와 코사인 유사도가 바로 다시 계산되고, 조각을 빼거나 더하면 로지스틱 회귀의 판정이 바뀝니다. ③·④ 탭에는 책의 네이버 영화 리뷰 모델(시험 정확도 87.1%)로 계산한 값이 들어 있습니다.</p>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab" role="tab" aria-selected="true" data-p="p-tf">① 글을 숫자로: TF-IDF</button>
+  <button class="tab" role="tab" aria-selected="false" data-p="p-cos">② 코사인 유사도</button>
+  <button class="tab" role="tab" aria-selected="false" data-p="p-lr">③ 판정은 조각 점수의 합</button>
+  <button class="tab" role="tab" aria-selected="false" data-p="p-conf">④ 확신과 망설임</button>
+</nav>
+
+<!-- ① TF-IDF -->
+<section class="panel" id="p-tf">
+  <div class="stage">
+    <div class="cap">문서-단어 행렬 (조각이 나온 횟수 tf)</div>
+    <div class="tw"><table class="m" id="f-cnt"></table></div>
+    <div class="cap">TF-IDF = tf × ln(N ÷ df)</div>
+    <div class="tw"><table class="m" id="f-tf"></table></div>
+    <p class="hint">빨간 줄이 idf입니다. 모든 글에 나온 조각은 idf가 0이라 회색으로 꺼집니다. 칸을 누르면 오른쪽에 계산 과정이 나옵니다.</p>
+  </div>
+  <div class="side">
+    <div class="card">
+      <h2>글 (한 줄이 리뷰 하나)</h2>
+      <div class="docs" id="f-docs"></div>
+      <label class="sl" style="margin-top:8px">자르는 방법 <select class="sel" id="f-cut">
+        <option value="w">띄어쓰기 단어 (1개씩)</option>
+        <option value="w12">단어 1~2개씩 (n-gram)</option>
+        <option value="c2">글자 2개씩 (띄어쓰기 빼고)</option>
+      </select><span></span></label>
+      <div class="row" style="margin-top:6px">
+        <button class="b" id="f-ex">책 예제 11-1</button>
+        <button class="b" id="f-news">뉴스 제목</button>
+        <button class="b" id="f-common">모든 글에 "영화" 넣기</button>
+      </div>
+      <div class="stats">
+        <div class="stat"><b>글 수 N</b><span id="f-n">–</span></div>
+        <div class="stat"><b>조각 종류 (열 수)</b><span id="f-v">–</span></div>
+        <div class="stat"><b>0인 칸의 비율 (희소)</b><span id="f-sp">–</span></div>
+        <div class="stat"><b>idf가 가장 큰 조각</b><span id="f-top">–</span></div>
+      </div>
+      <p class="read" id="f-read"></p>
+      <div class="calc" id="f-calc"></div>
+    </div>
+    <div class="box"><strong>해 볼 것</strong>① "책 예제 11-1"에서 idf가 배우·연기·지루 0.405, 스토리·최고 1.099인지 확인합니다(식 11-1). ② "모든 글에 영화 넣기"를 누르면 "영화"의 idf가 0이 되어 무게가 사라집니다. 흔한 단어는 글을 가르지 못합니다. ③ 자르는 방법을 "단어 1~2개씩"으로 바꾸면 열이 늘고 0인 칸의 비율이 커집니다(희소 벡터). ④ 글을 직접 고쳐 보세요. 상담 기록이나 상품 설명도 같은 방법으로 숫자가 됩니다.</div>
+  </div>
+</section>
+
+<!-- ② 코사인 유사도 -->
+<section class="panel" id="p-cos" hidden>
+  <div class="stage">
+    <svg id="cv" viewBox="0 0 560 470" aria-label="두 단어 축 위의 두 글 벡터"></svg>
+    <p class="hint">두 글을 단어 두 개("배우", "지루")의 횟수로만 나타냈습니다. 화살표 끝의 동그라미를 끌어 옮기세요. 코사인 유사도는 두 화살표 사이 각도만 봅니다.</p>
+    <div class="cap">① 탭 글들의 코사인 유사도 (TF-IDF 벡터)</div>
+    <div class="tw"><table class="m" id="c-mat"></table></div>
+  </div>
+  <div class="side">
+    <div class="card">
+      <h2>cos θ = (a · b) ÷ (‖a‖ × ‖b‖)</h2>
+      <div class="eq" id="c-eq" style="font-size:1rem">–</div>
+      <div class="stats">
+        <div class="stat"><b>내적 a · b</b><span id="c-dot">–</span></div>
+        <div class="stat"><b>길이 ‖a‖ / ‖b‖</b><span id="c-len">–</span></div>
+        <div class="stat"><b>코사인 유사도</b><span id="c-cos">–</span></div>
+        <div class="stat"><b>사이 각도</b><span id="c-ang">–</span></div>
+        <div class="stat"><b>거리 ‖a − b‖ (비교)</b><span id="c-dist">–</span></div>
+        <div class="stat"><b>판단</b><span id="c-say">–</span></div>
+      </div>
+      <p class="read" id="c-read"></p>
+      <div class="row" style="margin-top:8px">
+        <button class="b" id="c-dbl">같은 글을 두 번 이어 붙이면</button>
+        <button class="b" id="c-orth">겹치는 단어가 없으면</button>
+        <button class="b" id="c-rev">거의 반대 성향</button>
+      </div>
+    </div>
+    <div class="box"><strong>해 볼 것</strong>① "같은 글을 두 번 이어 붙이면"을 누르면 거리는 커지지만 코사인 유사도는 1 그대로입니다. 긴 글과 짧은 글을 공정하게 견주는 까닭입니다(식 11-4). ② "겹치는 단어가 없으면" 각도가 90°, 유사도 0입니다. ③ 아래 표에서 예제 11-1의 d1·d2가 0.378, d1·d3이 0인지 봅니다. ④ 단어 축을 "고객이 산 상품 수"로 바꿔 읽으면 비슷한 고객 찾기가 됩니다.</div>
+  </div>
+</section>
+
+<!-- ③ 로지스틱 회귀 -->
+<section class="panel" id="p-lr" hidden>
+  <div class="stage">
+    <svg id="lv" viewBox="0 0 640 400" aria-label="조각별 몫 wx와 그 합"></svg>
+    <p class="hint">막대 하나가 조각 하나의 몫(가중치 w × TF-IDF 무게 x)입니다. 빨강은 긍정 쪽, 파랑은 부정 쪽입니다. 막대를 누르면 그 조각을 빼고 다시 계산합니다(남은 조각의 무게는 길이 1로 다시 맞춥니다).</p>
+    <svg id="ls" viewBox="0 0 640 220" aria-label="로그 오즈와 긍정 확률(시그모이드)"></svg>
+  </div>
+  <div class="side">
+    <div class="card">
+      <h2>z = b₀ + Σ wₜxₜ, &nbsp;p = 1 ÷ (1 + e<sup>−z</sup>)</h2>
+      <select class="sel" id="l-sent"></select>
+      <p class="sub" id="l-m"></p>
+      <div class="stats">
+        <div class="stat"><b>절편 b₀</b><span id="l-b0">–</span></div>
+        <div class="stat"><b>조각 몫의 합</b><span id="l-sum">–</span></div>
+        <div class="stat"><b>로그 오즈 z</b><span id="l-z">–</span></div>
+        <div class="stat"><b>긍정 확률 p</b><span id="l-p">–</span></div>
+      </div>
+      <p class="read" id="l-read"></p>
+      <div class="row" style="margin-top:6px"><button class="b" id="l-reset">빼낸 조각 되돌리기</button></div>
+    </div>
+    <div class="card">
+      <h2>조각으로 직접 리뷰 만들기</h2>
+      <p class="sub">긍정 쪽 조각 (괄호 안은 가중치 w)</p><div class="chips" id="l-pos"></div>
+      <p class="sub">부정 쪽 조각</p><div class="chips" id="l-neg"></div>
+      <div class="row" style="margin-top:8px"><button class="b" id="l-clr">조각 모두 빼기</button></div>
+    </div>
+    <div class="box"><strong>해 볼 것</strong>① "재미없지는 않았다"를 고르면 "재미없" 한 조각의 몫(−3.256)이 로그 오즈(−3.344)의 대부분이라 긍정 확률이 3.4%에 그칩니다(실습 11-7, 식 11-5). ② 그 막대를 눌러 "재미없"을 빼면 확률이 얼마나 오르나요? ③ 조각 칩으로 "최고"와 "최악"을 함께 넣어 보세요. 점수가 서로 지웁니다. ④ 조각을 많이 넣을수록 조각 하나의 무게 x는 작아집니다(길이를 1로 맞추기 때문).</div>
+  </div>
+</section>
+
+<!-- ④ 확신과 망설임 -->
+<section class="panel" id="p-conf" hidden>
+  <div class="stage">
+    <svg id="hv" viewBox="0 0 640 380" aria-label="시험 리뷰의 긍정 확률 분포"></svg>
+    <p class="hint">시험 리뷰 49,997개에 모델이 낸 긍정 확률입니다(위: 실제 긍정, 아래: 실제 부정, 세로는 제곱근 눈금). 노란 띠가 사람에게 넘기는 구간, 굵은 선이 기준값입니다. 그래프를 누르면 기준값이 옮겨집니다.</p>
+  </div>
+  <div class="side">
+    <div class="card">
+      <h2>사람에게 넘길 구간과 기준값</h2>
+      <label class="sl">구간 아래 끝 <input type="range" id="h-lo" min="0" max="0.5" step="0.01" value="0.4"><output id="h-loo"></output></label>
+      <label class="sl">구간 위 끝 <input type="range" id="h-hi" min="0.5" max="1" step="0.01" value="0.6"><output id="h-hio"></output></label>
+      <label class="sl">기준값 <input type="range" id="h-t" min="0.05" max="0.95" step="0.01" value="0.5"><output id="h-to"></output></label>
+      <div class="row" style="margin-top:6px">
+        <button class="b" id="h-b1">책 3.6 (0.4~0.6)</button>
+        <button class="b" id="h-b2">연습문제 11-4 (0.3~0.7)</button>
+        <button class="b" id="h-b3">확신만 맡기기 (0.1~0.9)</button>
+        <button class="b" id="h-b0">넘기지 않기</button>
+      </div>
+      <div class="stats">
+        <div class="stat"><b>사람에게 넘긴 리뷰</b><span id="h-n">–</span></div>
+        <div class="stat"><b>모델이 맡은 쪽 정확도</b><span id="h-acc">–</span></div>
+        <div class="stat"><b>넘긴 쪽을 모델이 판정하면</b><span id="h-acc2">–</span></div>
+        <div class="stat"><b>전체 정확도 (넘기지 않을 때)</b><span id="h-all">–</span></div>
+        <div class="stat"><b>정밀도 (모델이 맡은 쪽)</b><span id="h-pre">–</span></div>
+        <div class="stat"><b>재현율 (모델이 맡은 쪽)</b><span id="h-rec">–</span></div>
+      </div>
+      <p class="read" id="h-read"></p>
+    </div>
+    <div class="box"><strong>해 볼 것</strong>① "책 3.6"을 누르면 망설이는 리뷰가 8.7%, 그 정확도가 55.4%로 찍기와 비슷합니다. ② "연습문제 11-4"는 18.3%를 넘기고 모델 쪽 정확도가 92.7%로 오릅니다. 구간을 넓히면 사람의 일이 얼마나 늘까요? ③ 기준값을 0.8로 올리면 정밀도는 오르고 재현율은 내려갑니다. 카드 사기 탐지나 암 검진이라면 어느 쪽으로 옮길까요?</div>
+  </div>
+</section>
+<p class="hint" style="text-align:center">③·④ 탭의 숫자는 11장 05절 실습 11-5·11-7·11-8과 같은 코드(형태소 1~2개씩 TF-IDF, 로지스틱 회귀 C = 3)로 계산했습니다.</p>
+</div>
+
+<script>
+(() => {
+"use strict";
+const D = {"intercept": -0.3709, "pieces": {"최고": [13.0411, 4.2208], "재밌": [11.051, 3.8638], "명작": [8.4115, 5.3938], "아깝 지": [8.2217, 7.7382], "재미있": [8.0449, 4.6443], "감동": [7.5957, 4.4698], "너무 좋": [7.5781, 6.0414], "좋": [7.5089, 3.5895], "여운": [7.5003, 5.9542], "굿": [7.0978, 6.0414], "♥": [6.9924, 6.5853], "수작": [6.9421, 6.4161], "최악": [-14.1143, 5.2728], "재미없": [-11.8381, 4.8959], "쓰레기": [-11.4618, 4.8792], "별로": [-9.8472, 5.3165], "차라리": [-8.5852, 6.2835], "실망": [-8.4472, 5.9571], "졸작": [-8.2655, 6.6435], "짜증": [-8.1109, 5.6668], "3 점": [-7.8557, 7.1647], "노 잼": [-7.7144, 6.8324], "아깝": [-7.3965, 4.5537], "그나마": [-7.3532, 6.7734], "영화": [-2.4309, 2.1519], "배우": [-0.2306, 4.4586], "연기": [1.0618, 4.1057], "스토리": [-2.1136, 4.3405], "시간": [-3.5552, 4.6746], "지루": [-6.5861, 4.6744], "않": [-1.5501, 3.9792], "는 않": [-1.83, 7.6237], "지 는": [1.5807, 5.7551], "재미없 지": [1.2118, 10.589], "그냥": [-3.7582, 4.6386], "그렇": [-2.0232, 5.029], "기대": [0.3727, 5.0663], "대박": [4.7399, 6.3505], "없": [-6.1834, 3.2995], "추천": [3.4668, 5.844], "평점": [-0.1891, 4.2569], "ㅋㅋ": [2.5252, 4.6334], "ㅠㅠ": [4.3433, 5.2529], "다시": [3.5239, 4.8868], "보": [1.7374, 2.2612]}, "sent": [{"text": "배우들 연기가 정말 최고였어요", "m": "배우 들 연기 가 정말 최고 이 었 어요", "parts": [["배우 들", 0.258836, -1.926089], ["었", 0.113546, -1.16287], ["가", 0.130473, -0.640444], ["배우", 0.223613, -0.230557], ["들", 0.153819, 0.22436], ["정말 최고", 0.354211, 0.168434], ["이", 0.084147, 0.934703], ["연기", 0.205913, 1.061754], ["가 정말", 0.374473, 0.585863], ["연기 가", 0.303476, 0.83806], ["정말", 0.190075, 1.816173], ["이 었", 0.225401, 1.94805], ["었 어요", 0.244756, 1.895577], ["들 연기", 0.343613, 1.669844], ["어요", 0.191775, 3.89511], ["최고 이", 0.275051, 3.008069], ["최고", 0.211685, 13.041063]], "p": 0.9972}, {"text": "시간이 아까운 영화", "m": "시간 이 아깝 은 영화", "parts": [["아깝", 0.331496, -7.396525], ["이 아깝", 0.439564, -4.354742], ["시간", 0.340299, -3.555209], ["영화", 0.15665, -2.430882], ["은", 0.188308, -1.580166], ["아깝 은", 0.450671, -0.047803], ["이", 0.122139, 0.934703], ["시간 이", 0.445404, 0.87283], ["은 영화", 0.323549, 2.96226]], "p": 0.0056}, {"text": "재미없을 줄 알았는데 의외로 재밌네요", "m": "재미없 을 줄 알 었 는데 의외로 재밌 네요", "parts": [["재미없", 0.189735, -11.838086], ["줄 알", 0.224927, -1.948779], ["줄", 0.198982, -0.896201], ["었", 0.087739, -1.16287], ["의외로 재밌", 0.394651, -0.232182], ["을 줄", 0.303896, 0.020238], ["알 었", 0.230042, 0.089336], ["을", 0.107948, 0.275318], ["었 는데", 0.157233, 0.793793], ["는데", 0.141715, 0.924889], ["는데 의외로", 0.379808, 0.573807], ["알", 0.178944, 1.244816], ["네요", 0.150432, 2.288749], ["재미없 을", 0.339035, 1.335253], ["재밌 네요", 0.273704, 2.828611], ["의외로", 0.312173, 2.923749], ["재밌", 0.149738, 11.050998]], "p": 0.8122}, {"text": "기대 안 했는데 대박", "m": "기대 안 하 었 는데 대 박", "parts": [["안", 0.184512, -2.884268], ["는데 대", 0.528514, -0.296412], ["었", 0.111886, -1.16287], ["하 었", 0.192023, -0.50455], ["하", 0.090944, -0.755613], ["기대", 0.250377, 0.372672], ["대", 0.255336, 0.524344], ["었 는데", 0.200507, 0.793793], ["는데", 0.180719, 0.924889], ["안 하", 0.293214, 0.797301], ["박", 0.311885, 0.861651], ["기대 안", 0.35344, 3.054993], ["대 박", 0.346485, 3.791019]], "p": 0.8903}, {"text": "재미없지는 않았다", "m": "재미없 지 는 않 었 다", "parts": [["재미없", 0.275017, -11.838086], ["는 않", 0.428244, -1.830024], ["않", 0.223523, -1.550094], ["다", 0.123462, -1.216233], ["었", 0.127175, -1.16287], ["않 었", 0.345854, -0.0334], ["는", 0.118062, -0.047457], ["지", 0.167022, 0.538164], ["었 다", 0.199581, 2.034548], ["지 는", 0.323278, 1.580727], ["재미없 지", 0.594812, 1.211757]], "p": 0.0341}, {"text": "그냥 그랬어요", "m": "그냥 그렇 었 어요", "parts": [["그냥", 0.315475, -3.758211], ["그렇 었", 0.501795, -1.903584], ["그냥 그렇", 0.57462, -1.444699], ["그렇", 0.342032, -2.023206], ["었", 0.153977, -1.16287], ["었 어요", 0.331908, 1.895577], ["어요", 0.260062, 3.89511]], "p": 0.071}], "hist": [[3526, 20], [1892, 30], [1417, 26], [1174, 31], [983, 37], [895, 41], [787, 42], [679, 54], [663, 38], [616, 53], [539, 42], [480, 52], [446, 37], [426, 72], [382, 53], [323, 54], [390, 58], [298, 71], [288, 56], [298, 54], [272, 62], [291, 67], [246, 55], [270, 66], [220, 71], [215, 73], [195, 58], [205, 73], [206, 62], [192, 76], [177, 64], [206, 66], [202, 81], [183, 76], [173, 79], [180, 81], [175, 80], [136, 80], [139, 72], [142, 100], [241, 180], [156, 81], [106, 105], [110, 97], [95, 78], [106, 90], [113, 94], [115, 80], [112, 105], [89, 104], [99, 96], [102, 94], [94, 117], [94, 109], [95, 119], [94, 133], [88, 113], [82, 106], [89, 131], [89, 145], [79, 139], [73, 139], [90, 153], [79, 150], [78, 133], [80, 176], [64, 155], [67, 172], [70, 186], [52, 159], [67, 179], [66, 189], [66, 184], [56, 183], [49, 214], [44, 225], [69, 257], [55, 223], [45, 246], [59, 245], [48, 294], [47, 295], [42, 284], [48, 320], [37, 333], [36, 366], [34, 420], [50, 421], [44, 484], [44, 537], [26, 516], [43, 594], [27, 671], [34, 702], [42, 854], [20, 987], [54, 1212], [36, 1540], [46, 2145], [64, 3949]], "n_test": 49997, "check": {"acc": 0.8713, "sure": [0.5314, 0.9712], "unsure": [0.0869, 0.5536], "hand37": [9132, 0.1827, 0.927, 0.6221]}, "n_vocab": 172906};
+const $ = id => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+const fmt = (v, d = 2) => (v === null || !isFinite(v)) ? "–" : v.toLocaleString("ko-KR", {minimumFractionDigits: d, maximumFractionDigits: d});
+const sn = (v, d = 2) => (v < 0 ? "−" : "") + fmt(Math.abs(v), d);
+const pct = (v, d = 1) => isFinite(v) ? fmt(v * 100, d) + "%" : "–";
+const sig = z => 1 / (1 + Math.exp(-z));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+function el(tag, attrs = {}, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function txt(parent, x, y, s, a = {}) { const t = el("text", Object.assign({x, y, "font-size": 11, fill: "var(--muted)"}, a), parent); t.textContent = s; return t; }
+function axes(svg, box, xr, yr, xt, yt, xl, yl, ytf = v => v, xtf = v => v) {
+  const [L, T, W, H] = box;
+  const X = v => L + (v - xr[0]) / (xr[1] - xr[0]) * W, Y = v => T + H - (v - yr[0]) / (yr[1] - yr[0]) * H;
+  const g = el("g", {}, svg);
+  el("rect", {x: L, y: T, width: W, height: H, fill: "var(--paper)"}, g);
+  xt.forEach(v => { el("line", {x1: X(v), x2: X(v), y1: T, y2: T + H, stroke: "var(--grid)"}, g); txt(g, X(v), T + H + 16, xtf(v), {"text-anchor": "middle"}); });
+  yt.forEach(v => { el("line", {x1: L, x2: L + W, y1: Y(v), y2: Y(v), stroke: "var(--grid)"}, g); txt(g, L - 6, Y(v) + 4, ytf(v), {"text-anchor": "end"}); });
+  el("rect", {x: L, y: T, width: W, height: H, fill: "none", stroke: "var(--grid2)"}, g);
+  if (xl) txt(g, L + W / 2, T + H + 34, xl, {"text-anchor": "middle", "font-size": 12, fill: "var(--ink)"});
+  if (yl) txt(g, 14, T + H / 2, yl, {"text-anchor": "middle", "font-size": 12, fill: "var(--ink)", transform: `rotate(-90 14 ${T + H / 2})`});
+  return {X, Y, g};
+}
+function svgPt(svg, ev) {
+  const p = svg.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY;
+  return p.matrixTransform(svg.getScreenCTM().inverse());
+}
+
+/* 탭 */
+const tabs = [...document.querySelectorAll(".tab")];
+function show(btn) {
+  tabs.forEach(t => { const on = t === btn; t.setAttribute("aria-selected", on); $(t.dataset.p).hidden = !on; });
+  drawAll();
+}
+tabs.forEach(t => t.addEventListener("click", () => show(t)));
+
+/* ① TF-IDF */
+const EX = ["배우 연기 최고", "배우 연기 지루", "스토리 지루 지루", ""];
+const NEWS = ["금리 인상 발표", "금리 동결 발표", "축구 대표팀 경기 결과", "축구 경기 일정 발표"];
+const F = {docs: EX.slice(), pick: null};
+function docsUI() {
+  const box = $("f-docs"); box.innerHTML = "";
+  F.docs.forEach((d, i) => {
+    const lab = document.createElement("span"); lab.textContent = "d" + (i + 1);
+    const inp = document.createElement("input"); inp.className = "doc"; inp.value = d; inp.placeholder = i === 3 ? "(비워 두면 빠집니다)" : "";
+    inp.addEventListener("input", () => { F.docs[i] = inp.value; F.pick = null; fDraw(); });
+    box.append(lab, inp);
+  });
+}
+function tokens(s, how) {
+  const w = s.trim().split(/\s+/).filter(Boolean);
+  if (how === "w") return w;
+  if (how === "w12") return [...w, ...w.slice(1).map((x, i) => w[i] + " " + x)];
+  const c = [...s.replace(/\s+/g, "")]; return c.slice(1).map((x, i) => c[i] + x);
+}
+function tfidf() {
+  const how = $("f-cut").value, ids = [], toks = [];
+  F.docs.forEach((d, i) => { if (d.trim()) { ids.push(i); toks.push(tokens(d, how)); } });
+  const vocab = [...new Set(toks.flat())].sort((a, b) => a.localeCompare(b, "ko"));
+  const N = toks.length;
+  const cnt = toks.map(t => vocab.map(v => t.filter(x => x === v).length));
+  const df = vocab.map((v, j) => cnt.filter(r => r[j] > 0).length);
+  const idf = df.map(d => Math.log(N / d));
+  const T = cnt.map(r => r.map((c, j) => c * idf[j]));
+  return {ids, vocab, N, cnt, df, idf, T};
+}
+function cosM(T) {
+  const n = T.map(r => Math.hypot(...r));
+  return T.map((a, i) => T.map((b, j) => n[i] && n[j] ? a.reduce((s, v, k) => s + v * b[k], 0) / (n[i] * n[j]) : NaN));
+}
+function fDraw() {
+  const R = tfidf(), {ids, vocab, N, cnt, df, idf, T} = R;
+  const head = `<tr><th></th>${vocab.map(v => `<th>${esc(v)}</th>`).join("")}</tr>`;
+  const zc = j => idf[j] === 0 ? ' class="zero"' : "";
+  $("f-cnt").innerHTML = head + cnt.map((r, i) => `<tr><th>d${ids[i] + 1}</th>${r.map((c, j) => `<td${zc(j)}>${c}</td>`).join("")}</tr>`).join("")
+    + `<tr><th>df</th>${df.map((d, j) => `<td${zc(j)}>${d}</td>`).join("")}</tr>`;
+  $("f-tf").innerHTML = head + `<tr class="idf"><th>idf</th>${idf.map((v, j) => `<td${zc(j)}>${fmt(v, 3)}</td>`).join("")}</tr>`
+    + T.map((r, i) => `<tr><th>d${ids[i] + 1}</th>${r.map((v, j) => `<td class="hot${idf[j] === 0 ? " zero" : ""}" data-i="${i}" data-j="${j}">${fmt(v, 3)}</td>`).join("")}</tr>`).join("");
+  $("f-tf").querySelectorAll("td.hot").forEach(td => td.onclick = () => { F.pick = [+td.dataset.i, +td.dataset.j]; fDraw(); });
+  const cells = N * vocab.length, zeros = cnt.flat().filter(c => c === 0).length;
+  $("f-n").textContent = N; $("f-v").textContent = vocab.length; $("f-sp").textContent = cells ? pct(zeros / cells) : "–";
+  let jm = -1; idf.forEach((v, j) => { if (jm < 0 || v > idf[jm]) jm = j; });
+  $("f-top").textContent = jm >= 0 ? `${vocab[jm]} (${fmt(idf[jm], 3)})` : "–";
+  const nz = idf.filter(v => v === 0).length;
+  $("f-read").textContent = N < 2 ? "글이 두 개 이상이어야 idf를 계산할 수 있습니다."
+    : nz ? `모든 글에 나온 조각 ${nz}종류는 idf가 ln(${N} ÷ ${N}) = 0이라 무게가 사라졌습니다. 드물게 나온 조각일수록 idf가 큽니다.`
+    : `글 ${N}개에 조각 ${vocab.length}종류. 한 글에만 나온 조각의 idf는 ln(${N} ÷ 1) = ${fmt(Math.log(N), 3)}로 가장 큽니다.`;
+  let p = F.pick;
+  if (!p || p[0] >= N || p[1] >= vocab.length) { p = null; for (let j = 0; j < vocab.length && !p; j++) if (cnt[0] && cnt[0][j]) p = [0, j]; }
+  if (p) { const [i, j] = p, w = vocab[j];
+    $("f-calc").textContent = `d${ids[i] + 1}의 "${w}"\n tf  = ${cnt[i][j]}번\n df  = ${df[j]} (글 ${N}개 가운데 "${w}"가 든 글 수)\n idf = ln(${N} ÷ ${df[j]}) = ${fmt(idf[j], 3)}\n TF-IDF = ${cnt[i][j]} × ${fmt(idf[j], 3)} = ${fmt(T[i][j], 3)}`;
+  } else $("f-calc").textContent = "";
+  F.last = R;
+}
+$("f-cut").onchange = () => { F.pick = null; fDraw(); };
+$("f-ex").onclick = () => { F.docs = EX.slice(); $("f-cut").value = "w"; F.pick = null; docsUI(); fDraw(); };
+$("f-news").onclick = () => { F.docs = NEWS.slice(); $("f-cut").value = "w"; F.pick = null; docsUI(); fDraw(); };
+$("f-common").onclick = () => { F.docs = F.docs.map(d => d.trim() && !/(^|\s)영화(\s|$)/.test(d) ? d.trim() + " 영화" : d); F.pick = null; docsUI(); fDraw(); };
+
+/* ② 코사인 유사도 */
+const C = {a: [3, 1], b: [2, 3], drag: null};
+function cDraw() {
+  const v = $("cv"); v.textContent = "";
+  const M = 8, B = [56, 14, 440, 400], ax = axes(v, B, [0, M], [0, M], [0, 2, 4, 6, 8], [0, 2, 4, 6, 8], '"배우"가 나온 횟수', '"지루"가 나온 횟수');
+  const [a, b] = [C.a, C.b];
+  const la = Math.hypot(...a), lb = Math.hypot(...b), dot = a[0] * b[0] + a[1] * b[1];
+  const cos = la && lb ? dot / (la * lb) : NaN, ang = Math.acos(Math.max(-1, Math.min(1, cos))) * 180 / Math.PI;
+  const defs = el("defs", {}, v);
+  [["ma", "var(--line)"], ["mb", "var(--pt)"]].forEach(([id, c]) => { const m = el("marker", {id, viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse"}, defs); el("path", {d: "M0,0L10,5L0,10z", fill: c}, m); });
+  if (la && lb) {
+    const r = 46, t1 = Math.atan2(a[1], a[0]), t2 = Math.atan2(b[1], b[0]), x0 = ax.X(0), y0 = ax.Y(0);
+    const s = Math.min(t1, t2), e = Math.max(t1, t2);
+    el("path", {d: `M${x0 + r * Math.cos(s)},${y0 - r * Math.sin(s)} A${r},${r} 0 0 0 ${x0 + r * Math.cos(e)},${y0 - r * Math.sin(e)}`, fill: "none", stroke: "var(--mean)", "stroke-width": 2}, v);
+    txt(v, x0 + (r + 18) * Math.cos((s + e) / 2), y0 - (r + 18) * Math.sin((s + e) / 2) + 4, `θ = ${fmt(ang, 0)}°`, {fill: "var(--mean)", "font-size": 13, "font-weight": 700, "text-anchor": "middle"});
+  }
+  el("line", {x1: ax.X(a[0]), y1: ax.Y(a[1]), x2: ax.X(b[0]), y2: ax.Y(b[1]), stroke: "var(--muted)", "stroke-dasharray": "4 4"}, v);
+  [[a, "var(--line)", "ma", "글 a", "a"], [b, "var(--pt)", "mb", "글 b", "b"]].forEach(([p, c, m, lab, k]) => {
+    el("line", {x1: ax.X(0), y1: ax.Y(0), x2: ax.X(p[0]), y2: ax.Y(p[1]), stroke: c, "stroke-width": 4, "marker-end": `url(#${m})`}, v);
+    const h = el("circle", {cx: ax.X(p[0]), cy: ax.Y(p[1]), r: 11, fill: c, "fill-opacity": .25, stroke: c, "stroke-width": 2, style: "cursor:grab"}, v); h.dataset.k = k;
+    txt(v, ax.X(p[0]) + 12, ax.Y(p[1]) - 12, `${lab} (${p[0]}, ${p[1]})`, {fill: c, "font-size": 13, "font-weight": 700});
+  });
+  v.onpointerdown = ev => { const k = ev.target.dataset && ev.target.dataset.k; if (!k) return; C.drag = k; v.setPointerCapture(ev.pointerId); };
+  v.onpointermove = ev => { if (!C.drag) return; const q = svgPt(v, ev);
+    const x = Math.round(Math.max(0, Math.min(M, (q.x - B[0]) / B[2] * M))), y = Math.round(Math.max(0, Math.min(M, (B[1] + B[3] - q.y) / B[3] * M)));
+    if (x !== C[C.drag][0] || y !== C[C.drag][1]) { C[C.drag] = [x, y]; cDraw(); } };
+  v.onpointerup = () => { C.drag = null; };
+  $("c-eq").textContent = la && lb ? `(${a[0]}×${b[0]} + ${a[1]}×${b[1]}) ÷ (${fmt(la, 3)} × ${fmt(lb, 3)}) = ${fmt(cos, 3)}` : "길이가 0인 글은 방향이 없습니다";
+  $("c-dot").textContent = dot; $("c-len").textContent = `${fmt(la, 3)} / ${fmt(lb, 3)}`;
+  $("c-cos").textContent = fmt(cos, 3); $("c-ang").textContent = isFinite(ang) ? fmt(ang, 1) + "°" : "–";
+  $("c-dist").textContent = fmt(Math.hypot(a[0] - b[0], a[1] - b[1]), 3);
+  $("c-say").textContent = !isFinite(cos) ? "–" : cos > 0.95 ? "거의 같은 글" : cos > 0.7 ? "비슷한 글" : cos > 0.3 ? "조금 비슷" : "다른 글";
+  $("c-read").textContent = !isFinite(cos) ? "단어가 하나도 없는 글(0, 0)은 견줄 수 없습니다."
+    : `두 글 사이 각도는 ${fmt(ang, 0)}°, 코사인 유사도는 ${fmt(cos, 3)}입니다. 횟수가 모두 0 이상이라 유사도는 0~1 사이에 있습니다. 거리는 글의 길이에 따라 커지지만, 코사인은 방향만 봅니다.`;
+  // ① 탭 글들의 유사도 표
+  const R = F.last || tfidf(), S = cosM(R.T), ids = R.ids;
+  $("c-mat").innerHTML = `<tr><th></th>${ids.map(i => `<th>d${i + 1}</th>`).join("")}</tr>` +
+    S.map((r, i) => `<tr><th>d${ids[i] + 1} ${esc(F.docs[ids[i]])}</th>${r.map(s => `<td style="background:rgba(200,35,75,${isFinite(s) ? (s * 0.35).toFixed(2) : 0})">${fmt(s, 3)}</td>`).join("")}</tr>`).join("");
+}
+$("c-dbl").onclick = () => { C.a = [2, 1]; C.b = [4, 2]; cDraw(); };
+$("c-orth").onclick = () => { C.a = [4, 0]; C.b = [0, 3]; cDraw(); };
+$("c-rev").onclick = () => { C.a = [6, 1]; C.b = [1, 6]; cDraw(); };
+
+/* ③ 조각 점수의 합 */
+const LR = {mode: 0, off: new Set(), chips: new Set()};
+function lParts() {
+  if (LR.mode >= 0) {
+    const s = D.sent[LR.mode];
+    const act = s.parts.filter(([w]) => !LR.off.has(w)), nrm = Math.hypot(...act.map(r => r[1])) || 1;
+    return s.parts.map(([w, x, c]) => ({w, c, x: LR.off.has(w) ? 0 : x / nrm, off: LR.off.has(w)}));
+  }
+  const ws = [...LR.chips], nrm = Math.hypot(...ws.map(w => D.pieces[w][1])) || 1;
+  return ws.map(w => ({w, c: D.pieces[w][0], x: D.pieces[w][1] / nrm, off: false}));
+}
+function lDraw() {
+  const parts = lParts().sort((p, q) => p.c * p.x - q.c * q.x), on = parts.filter(p => !p.off);
+  const sum = on.reduce((a, p) => a + p.c * p.x, 0), z = D.intercept + sum, pr = sig(z);
+  const v = $("lv"); v.textContent = "";
+  const rows = [...parts.map(p => ({lab: p.w, val: p.off ? 0 : p.c * p.x, p})), {lab: "절편 b₀", val: D.intercept}, {lab: "합 = z", val: z, tot: true}];
+  const mx = Math.max(4, ...rows.map(r => Math.abs(r.val))) * 1.08;
+  const B = [150, 12, 470, 360], X = u => B[0] + (u + mx) / (2 * mx) * B[2], rh = Math.min(30, B[3] / rows.length);
+  el("rect", {x: B[0], y: B[1], width: B[2], height: rows.length * rh, fill: "var(--paper)", stroke: "var(--grid2)"}, v);
+  const step = mx > 8 ? 4 : 2;
+  for (let u = -Math.floor(mx / step) * step; u <= mx; u += step) { el("line", {x1: X(u), x2: X(u), y1: B[1], y2: B[1] + rows.length * rh, stroke: "var(--grid)"}, v); txt(v, X(u), B[1] + rows.length * rh + 14, sn(u, 0), {"text-anchor": "middle"}); }
+  el("line", {x1: X(0), x2: X(0), y1: B[1], y2: B[1] + rows.length * rh, stroke: "var(--muted)"}, v);
+  rows.forEach((r, k) => {
+    const y = B[1] + k * rh;
+    if (r.tot) el("line", {x1: 6, x2: B[0] + B[2], y1: y, y2: y, stroke: "var(--ink)"}, v);
+    const col = r.tot ? "var(--ink)" : r.p ? (r.val >= 0 ? "var(--line)" : "var(--pt)") : "var(--muted)";
+    const rect = el("rect", {x: Math.min(X(0), X(r.val)), y: y + 4, width: Math.max(1.5, Math.abs(X(r.val) - X(0))), height: rh - 8, fill: col, "fill-opacity": r.p && r.p.off ? .15 : .85, rx: 3, style: r.p && LR.mode >= 0 ? "cursor:pointer" : ""}, v);
+    const lab = txt(v, B[0] - 8, y + rh / 2 + 4, r.lab, {"text-anchor": "end", fill: r.p && r.p.off ? "var(--muted)" : "var(--ink)", "font-size": 13, "font-weight": r.tot ? 700 : 500, "text-decoration": r.p && r.p.off ? "line-through" : "none", style: r.p ? "cursor:pointer" : ""});
+    txt(v, r.val >= 0 ? X(r.val) + 5 : X(r.val) - 5, y + rh / 2 + 4, r.p && r.p.off ? "뺌" : sn(r.val, 3), {"text-anchor": r.val >= 0 ? "start" : "end", fill: "var(--ink)", "font-size": 11, "font-family": "var(--f-num)"});
+    if (r.p) { const f = () => { if (LR.mode >= 0) { LR.off.has(r.p.w) ? LR.off.delete(r.p.w) : LR.off.add(r.p.w); } else LR.chips.delete(r.p.w); lDraw(); chipsUI(); };
+      rect.onclick = f; lab.onclick = f; }
+  });
+  // 시그모이드
+  const s = $("ls"); s.textContent = "";
+  const ax = axes(s, [56, 10, 566, 160], [-8, 8], [0, 1], [-8, -4, 0, 4, 8], [0, 0.5, 1], "로그 오즈 z", "긍정 확률 p");
+  let path = ""; for (let u = -8; u <= 8.001; u += 0.1) path += (path ? "L" : "M") + ax.X(u).toFixed(1) + "," + ax.Y(sig(u)).toFixed(1);
+  el("path", {d: path, fill: "none", stroke: "var(--line)", "stroke-width": 3}, s);
+  el("line", {x1: ax.X(-8), x2: ax.X(8), y1: ax.Y(0.5), y2: ax.Y(0.5), stroke: "var(--mean)", "stroke-dasharray": "4 3"}, s);
+  const zc = Math.max(-8, Math.min(8, z));
+  el("line", {x1: ax.X(zc), x2: ax.X(zc), y1: ax.Y(0), y2: ax.Y(pr), stroke: "var(--ink)", "stroke-dasharray": "3 3"}, s);
+  el("circle", {cx: ax.X(zc), cy: ax.Y(pr), r: 7, fill: "var(--paper)", stroke: "var(--ink)", "stroke-width": 2.5}, s);
+  txt(s, ax.X(zc) + (zc > 4 ? -10 : 10), ax.Y(pr) + (pr > 0.5 ? 18 : -10), `z = ${sn(z, 3)} → p = ${fmt(pr, 3)}`, {"text-anchor": zc > 4 ? "end" : "start", fill: "var(--ink)", "font-size": 13, "font-weight": 700});
+  $("l-b0").textContent = sn(D.intercept, 3); $("l-sum").textContent = sn(sum, 3); $("l-z").textContent = sn(z, 3); $("l-p").textContent = `${fmt(pr, 3)} → ${pr >= 0.5 ? "긍정" : "부정"}`;
+  if (LR.mode >= 0) {
+    const se = D.sent[LR.mode]; $("l-m").textContent = `형태소: ${se.m}  ·  조각 ${se.parts.length}개 (형태소 1개와 2개 묶음)`;
+    const big = on.length ? on.reduce((a, p) => Math.abs(p.c * p.x) > Math.abs(a.c * a.x) ? p : a) : null;
+    $("l-read").textContent = (LR.off.size ? `조각 ${LR.off.size}개를 뺐습니다. 처음 모델의 확률은 ${fmt(se.p, 3)}였습니다. ` : `모델이 낸 확률 ${fmt(se.p, 3)}와 같습니다. `) +
+      (big ? `몫이 가장 큰 조각은 "${big.w}"(${sn(big.c * big.x, 3)})입니다.` : "");
+  } else {
+    $("l-m").textContent = `직접 고른 조각 ${LR.chips.size}개 (조각마다 한 번씩 나왔다고 보고 TF-IDF = idf, 길이 1로 맞춤)`;
+    $("l-read").textContent = LR.chips.size ? `조각이 ${LR.chips.size}개라 조각 하나의 무게 x는 평균 ${fmt(1 / Math.sqrt(LR.chips.size), 2)} 안팎입니다. 가중치 w가 큰 조각도 다른 조각이 많으면 몫이 줄어듭니다.` : "아래 칩을 눌러 조각을 넣어 보세요. 조각이 없으면 절편만 남습니다.";
+  }
+}
+function chipsUI() {
+  const ws = Object.keys(D.pieces), mk = (box, list, cls) => { $(box).innerHTML = ""; list.forEach(w => {
+    const b = document.createElement("button"); b.className = cls + (LR.mode < 0 && LR.chips.has(w) ? " on" : "");
+    b.innerHTML = `${esc(w)}<small>${sn(D.pieces[w][0], 1)}</small>`;
+    b.onclick = () => { if (LR.mode >= 0) { LR.mode = -1; LR.chips.clear(); $("l-sent").value = "-1"; }
+      LR.chips.has(w) ? LR.chips.delete(w) : LR.chips.add(w); chipsUI(); lDraw(); };
+    $(box).appendChild(b); }); };
+  mk("l-pos", ws.filter(w => D.pieces[w][0] > 0).sort((a, b) => D.pieces[b][0] - D.pieces[a][0]), "s");
+  mk("l-neg", ws.filter(w => D.pieces[w][0] <= 0).sort((a, b) => D.pieces[a][0] - D.pieces[b][0]), "h");
+}
+$("l-sent").innerHTML = D.sent.map((s, i) => `<option value="${i}">${esc(s.text)} (p = ${fmt(s.p, 3)})</option>`).join("") + `<option value="-1">조각으로 직접 만들기</option>`;
+$("l-sent").onchange = () => { LR.mode = +$("l-sent").value; LR.off.clear(); chipsUI(); lDraw(); };
+$("l-reset").onclick = () => { LR.off.clear(); lDraw(); };
+$("l-clr").onclick = () => { LR.mode = -1; LR.chips.clear(); $("l-sent").value = "-1"; chipsUI(); lDraw(); };
+
+/* ④ 확신과 망설임 */
+function hStats() {
+  const lo = +$("h-lo").value, hi = +$("h-hi").value, t = +$("h-t").value, H = D.hist;
+  const kt = Math.round(t * 100), klo = Math.round(lo * 100), khi = Math.round(hi * 100);
+  let n = 0, nh = 0, okK = 0, okH = 0, tp = 0, fp = 0, fn = 0, okAll = 0;
+  H.forEach(([neg, pos], k) => {
+    const hat = k >= kt, hand = k >= klo && k < khi, ok = hat ? pos : neg;
+    n += neg + pos; okAll += ok;
+    if (hand) { nh += neg + pos; okH += ok; }
+    else { okK += ok; if (hat) { tp += pos; fp += neg; } else fn += pos; }
+  });
+  return {lo, hi, t, n, nh, okK, okH, tp, fp, fn, okAll};
+}
+function hDraw() {
+  const S = hStats();
+  $("h-loo").textContent = S.lo.toFixed(2); $("h-hio").textContent = S.hi.toFixed(2); $("h-to").textContent = S.t.toFixed(2);
+  const v = $("hv"); v.textContent = "";
+  const B = [56, 14, 566, 300], X = u => B[0] + u * B[2], mid = B[1] + B[3] / 2, Hh = B[3] / 2 - 4;
+  const mx = Math.sqrt(Math.max(...D.hist.flat(), 1));
+  el("rect", {x: B[0], y: B[1], width: B[2], height: B[3], fill: "var(--paper)", stroke: "var(--grid2)"}, v);
+  if (S.hi > S.lo) el("rect", {x: X(S.lo), y: B[1], width: X(S.hi) - X(S.lo), height: B[3], fill: "var(--mean)", "fill-opacity": .16}, v);
+  [0, 0.2, 0.4, 0.6, 0.8, 1].forEach(u => { el("line", {x1: X(u), x2: X(u), y1: B[1], y2: B[1] + B[3], stroke: "var(--grid)"}, v); txt(v, X(u), B[1] + B[3] + 16, u, {"text-anchor": "middle"}); });
+  txt(v, B[0] + B[2] / 2, B[1] + B[3] + 34, "모델이 낸 긍정 확률", {"text-anchor": "middle", "font-size": 12, fill: "var(--ink)"});
+  el("line", {x1: B[0], x2: B[0] + B[2], y1: mid, y2: mid, stroke: "var(--grid2)"}, v);
+  const w = B[2] / 100;
+  D.hist.forEach(([neg, pos], k) => {
+    const hand = k >= Math.round(S.lo * 100) && k < Math.round(S.hi * 100), op = hand ? .35 : .9;
+    const a = Math.sqrt(pos) / mx * Hh, c = Math.sqrt(neg) / mx * Hh;
+    if (pos) el("rect", {x: X(k / 100) + .3, y: mid - a, width: w - .6, height: a, fill: "var(--line)", "fill-opacity": op}, v);
+    if (neg) el("rect", {x: X(k / 100) + .3, y: mid, width: w - .6, height: c, fill: "var(--pt)", "fill-opacity": op}, v);
+  });
+  txt(v, B[0] + 6, B[1] + 14, "실제 긍정", {fill: "var(--line)", "font-size": 12}); txt(v, B[0] + 6, B[1] + B[3] - 6, "실제 부정", {fill: "var(--pt)", "font-size": 12});
+  el("line", {x1: X(S.t), x2: X(S.t), y1: B[1], y2: B[1] + B[3], stroke: "var(--ink)", "stroke-width": 2.5}, v);
+  txt(v, X(S.t) + 4, B[1] + 28, `기준값 ${S.t.toFixed(2)} → 오른쪽은 "긍정"`, {fill: "var(--ink)", "font-size": 12});
+  if (S.hi > S.lo) txt(v, (X(S.lo) + X(S.hi)) / 2, B[1] + B[3] - 22, "사람에게", {"text-anchor": "middle", fill: "var(--mean)", "font-size": 12, "font-weight": 700});
+  const drag = ev => { const q = svgPt(v, ev); $("h-t").value = Math.round(Math.max(0.05, Math.min(0.95, (q.x - B[0]) / B[2])) * 100) / 100; hDraw(); };
+  v.onpointerdown = ev => { v.setPointerCapture(ev.pointerId); drag(ev); v.onpointermove = drag; };
+  v.onpointerup = () => v.onpointermove = null;
+  const nk = S.n - S.nh;
+  $("h-n").textContent = `${fmt(S.nh, 0)}개 (${pct(S.nh / S.n)})`;
+  $("h-acc").textContent = nk ? pct(S.okK / nk) : "–"; $("h-acc2").textContent = S.nh ? pct(S.okH / S.nh) : "–";
+  $("h-all").textContent = pct(S.okAll / S.n);
+  $("h-pre").textContent = S.tp + S.fp ? pct(S.tp / (S.tp + S.fp)) : "–"; $("h-rec").textContent = S.tp + S.fn ? pct(S.tp / (S.tp + S.fn)) : "–";
+  $("h-read").textContent = S.nh ? `리뷰 ${fmt(S.n, 0)}개 가운데 ${fmt(S.nh, 0)}개를 사람이 읽고, 나머지 ${fmt(nk, 0)}개는 모델이 판정합니다. 모델 쪽 정확도는 전체(${pct(S.okAll / S.n)})보다 ${pct(S.okK / nk - S.okAll / S.n)}p 높습니다.`
+    : `넘기지 않으면 모델이 리뷰 ${fmt(S.n, 0)}개를 모두 판정하고 정확도는 ${pct(S.okAll / S.n)}입니다.`;
+}
+const hSet = (lo, hi) => { $("h-lo").value = lo; $("h-hi").value = hi; $("h-t").value = 0.5; hDraw(); };
+$("h-b1").onclick = () => hSet(0.4, 0.6); $("h-b2").onclick = () => hSet(0.3, 0.7);
+$("h-b3").onclick = () => hSet(0.1, 0.9); $("h-b0").onclick = () => hSet(0.5, 0.5);
+["h-lo", "h-hi", "h-t"].forEach(id => $(id).addEventListener("input", hDraw));
+
+function drawAll() {
+  if (!$("p-tf").hidden) fDraw();
+  if (!$("p-cos").hidden) { fDraw(); cDraw(); }
+  if (!$("p-lr").hidden) { chipsUI(); lDraw(); }
+  if (!$("p-conf").hidden) hDraw();
+}
+/* 시작 */
+LR.mode = Math.max(0, D.sent.findIndex(s => s.text === "재미없지는 않았다"));
+$("l-sent").value = LR.mode;
+docsUI(); fDraw();
+})();
+</script>
+</body></html>
