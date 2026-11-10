@@ -1,7 +1,7 @@
-# 07장. 끼리끼리 모으기: 군집화 (개정판 v3) — 05절 파이썬 실습과 미니 프로젝트 전체 코드
+# 07장. 끼리끼리 모으기: 군집화 (개정판) — 05절 파이썬 실습과 미니 프로젝트 전체 코드
 # '# ### 7-k' 조각 하나가 책의 [파이썬 실습 7-k] 하나입니다. MP-k는 [미니 프로젝트 7]의 단계,
 # EX-k는 연습문제 정답 코드, S6-k는 06절 숫자를 확인하는 덤 코드입니다(책에는 코드가 실리지 않음).
-# 실행: python3 practice_v3.py  (필요 라이브러리: pandas, numpy, scikit-learn, scipy, matplotlib)
+# 실행: python3 practice_ch07.py  (필요 라이브러리: pandas, numpy, scikit-learn, scipy, matplotlib)
 
 # ### 7-1
 import os
@@ -19,11 +19,18 @@ except ImportError:                        # 나눔고딕 파일이 이미 있�
     plt.rcParams["font.family"] = "NanumGothic"
 plt.rcParams["axes.unicode_minus"] = False
 
+USE_KAGGLE = True        # 캐글 파일에는 새 지진이 더해질 수 있다. 책과 똑같은 숫자를 보려면 False로
 DATA = "Significant_Earthquakes.csv"
-URL = ("https://raw.githubusercontent.com/Abdullah-Moataz/Earthquakes/"
-       "cf0d033d35f5d45eef6175bab6c60829363d6de4/Significant_Earthquakes.csv")
-if not os.path.exists(DATA):                       # 파일이 없을 때만 내려받기(약 21MB)
-    urllib.request.urlretrieve(URL, DATA)
+if USE_KAGGLE and not os.path.exists(DATA):        # ① 캐글에서 받기(약 21MB)
+    try:
+        import kagglehub
+        path = kagglehub.dataset_download("usamabuttar/significant-earthquakes")
+        DATA = os.path.join(path, "Significant_Earthquakes.csv")
+    except Exception as e:
+        print("캐글에서 받지 못했습니다:", type(e).__name__)
+if not os.path.exists(DATA):                       # ② 안 되면 책 깃허브 저장소의 같은 파일
+    urllib.request.urlretrieve("https://raw.githubusercontent.com/yeonu69/bigdata-python-book/"
+                               "main/ch07/data/Significant_Earthquakes.csv", DATA)
 
 df = pd.read_csv(DATA, index_col=0)                # 첫 열은 행 번호
 print("처음 읽은 행:", len(df), " 같은 id가 다시 나온 행:", df["id"].duplicated().sum())
@@ -54,6 +61,30 @@ plt.xlabel("연대")
 plt.ylabel("기록된 지진 수")
 plt.xticks(rotation=45)
 plt.show()
+
+import geopandas as gpd                            # 지도 데이터를 다루는 판다스
+land = gpd.read_file("https://raw.githubusercontent.com/nvkelso/natural-earth-vector/"
+                     "v5.1.2/geojson/ne_110m_land.geojson")      # 육지 경계(Natural Earth)
+
+def world_map(title="", ax=None):                  # 회색 대륙을 깔아 둔 지도
+    if ax is None:
+        ax = plt.subplots(figsize=(8, 4.2))[1]
+    land.plot(ax=ax, color="#ececec", edgecolor="#9a9a9a", linewidth=0.5)
+    ax.set_xlim(-180, 180)
+    ax.set_ylim(-90, 90)
+    ax.set_xlabel("경도")
+    ax.set_ylabel("위도")
+    ax.set_title(title)
+    return ax
+
+ax = world_map("규모 5 이상 지진의 진앙")
+ax.scatter(eq["longitude"], eq["latitude"], s=0.5, color="#E04B3C", alpha=0.3)
+plt.show()
+
+cell = (eq["latitude"] // 5).astype(int).astype(str) + "," + (eq["longitude"] // 5).astype(int).astype(str)
+cnt = cell.value_counts()                          # 위도·경도 5도 칸(36 × 72 = 2,592칸)마다 지진 수
+half = (cnt.cumsum() < len(eq) / 2).sum() + 1      # 많은 칸부터 더해 절반을 채우는 칸 수
+print("지진이 난 칸:", len(cnt), "/ 2592  지진 절반이 몰린 칸:", half, "칸")
 
 # ### 7-2
 print(eq[["depth", "mag"]].describe().round(2))
@@ -157,6 +188,16 @@ plt.ylabel("규모")
 plt.legend(markerscale=3)
 plt.show()
 
+fig, axes = plt.subplots(3, 1, figsize=(8, 12))   # 유형마다 지도 한 장
+for ax, g in zip(axes, COLOR):
+    part = eq[eq["군집"] == g]
+    world_map(f"{g} ({len(part):,}건)", ax=ax)
+    ax.scatter(part["longitude"], part["latitude"], s=1, color=COLOR[g], alpha=0.5)
+plt.tight_layout()
+plt.show()
+lon = eq.loc[eq["군집"] == "C 깊은", "longitude"]
+print("C 가운데 동경 100도~서경 170도(태평양 서쪽):", round(((lon >= 100) | (lon <= -170)).mean() * 100, 1), "%")
+
 # ### 7-6
 from sklearn.metrics import silhouette_score
 
@@ -244,6 +285,12 @@ print(size.sort_values("n", ascending=False).head(5).to_string(index=False))
 biggest = size["n"].idxmax()                       # 가장 큰 지대에는 어느 지역이?
 print(big.loc[big.zone == biggest, "region"].value_counts().head(3).to_dict())
 
+ax = world_map("DBSCAN 밀집 지대 (규모 6 이상)")
+noise, zone = big[big.zone < 0], big[big.zone >= 0]
+ax.scatter(noise["longitude"], noise["latitude"], s=3, color="#9a9a9a")     # 노이즈는 회색
+ax.scatter(zone["longitude"], zone["latitude"], s=5, c=zone["zone"], cmap="tab20")
+plt.show()
+
 # ### S6-1
 # 6.1 시작점에 따라 달라지는 답 (k = 5, 한 번씩만 돌리기)
 runs = [KMeans(n_clusters=5, n_init=1, init="random", random_state=s).fit(Xs).inertia_
@@ -275,6 +322,89 @@ print("2011년 일본 주변:", len(win), "건, 본진", main["time"].date(), "�
 print("본진과 한 묶음:", len(seq), "건, 첫날", ((after >= pd.Timedelta(0)) & (after < pd.Timedelta(days=1))).sum(),
       "건, 첫 주", ((after >= pd.Timedelta(0)) & (after < pd.Timedelta(days=7))).sum(),
       "건, 한 달 뒤부터", (after >= pd.Timedelta(days=30)).sum(), "건, 전진", (after < pd.Timedelta(0)).sum(), "건")
+
+# ### 7-11a
+# ② 데이터 불러오기: 미니 프로젝트와 같은 지하철 파일
+import os, urllib.parse, urllib.request
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
+
+PATH = "서울지하철_역별_시간대별_월평균_승하차_2024.csv"
+if not os.path.exists(PATH):                       # 없으면 책 깃허브 저장소에서 받기
+    urllib.request.urlretrieve("https://raw.githubusercontent.com/yeonu69/bigdata-python-book/"
+                               "main/ch07/data/" + urllib.parse.quote(PATH), PATH)
+sw = pd.read_csv(PATH)
+H = sw.loc[:, "06시이전":"24시이후"].columns         # 시간대 20칸
+ok = sw[(sw["날종류"] == "평일") & (sw["월"] != 4)]   # 평일, 4월은 뺀다(미니 프로젝트 1단계)
+w = ok.assign(**{h: ok[h] * ok["날수"] for h in H})
+prof = (w.groupby(["역명", "구분"])[H].sum()
+        .div(w.groupby(["역명", "구분"])["날수"].sum(), axis=0)
+        .unstack("구분"))                             # 한 역 = 한 줄
+prof.columns = [f"{b}_{h}" for h, b in prof.columns]
+prof = prof[[f"{b}_{h}" for b in ["승차", "하차"] for h in H]]
+prof = prof[prof.sum(axis=1) > 0]                    # 승하차가 0인 역은 뺀다
+share = prof.div(prof.sum(axis=1), axis=0) * 100     # 하루 승하차 가운데 몇 %
+Xp = share.to_numpy()
+print("역", Xp.shape[0], "곳 × 특성", Xp.shape[1], "칸")
+print("산점도로 모두 보려면:", Xp.shape[1] * (Xp.shape[1] - 1) // 2, "장")
+
+# ### 7-11b
+# ③ 모델 학습하기: PCA로 주성분 찾기
+pca = PCA().fit(Xp)                                   # 평균 빼기는 PCA가 알아서 한다
+ratio = pca.explained_variance_ratio_ * 100
+print("주성분마다 담은 몫(%):", ratio[:5].round(1).tolist())
+print("앞에서부터 누적(%):", ratio.cumsum()[:5].round(1).tolist())
+
+plt.figure(figsize=(6, 3))
+plt.bar(range(1, 11), ratio[:10], color=["#C8234B"] * 2 + ["#9a9a9a"] * 8)
+plt.plot(range(1, 11), ratio.cumsum()[:10], "o-", color="#222222", label="누적")
+plt.xticks(range(1, 11))
+plt.xlabel("주성분 번호")
+plt.ylabel("담은 몫(%)")
+plt.legend(loc="center right")
+plt.show()
+
+# ### 7-11c
+# ④ 결과 확인하기: 1주성분은 어떤 칸을 보나, 240개 역을 2축 지도로
+pc1 = pd.Series(pca.components_[0], index=share.columns)
+print("1주성분이 크게 본 칸:", pc1.sort_values().index[[0, 1, -2, -1]].tolist())
+Zp = pca.transform(Xp)[:, :2]                          # 주성분 점수(새 좌표) 두 개
+zp = pd.DataFrame(Zp, index=share.index, columns=["PC1", "PC2"]).round(1)
+print(zp.loc[["신림", "잠실(송파구청)", "강남", "을지로입구", "홍대입구"]].to_string())
+
+fig, ax = plt.subplots(1, 2, figsize=(10, 3.6), gridspec_kw={"wspace": 0.35})
+ax[0].plot(pc1.values[:20], color="#9a9a9a", label="승차")
+ax[0].plot(pc1.values[20:], color="#C8234B", label="하차")
+ax[0].axhline(0, color="#222222", linewidth=0.8)
+ax[0].set_xticks([2, 8, 13, 18], ["07시", "13시", "18시", "23시"])
+ax[0].set_title("1주성분의 가중치")
+ax[0].legend()
+ax[1].scatter(zp["PC1"], zp["PC2"], s=10, color="#9a9a9a")
+for st in ["신림", "잠실(송파구청)", "강남", "을지로입구", "홍대입구", "가산디지털단지"]:
+    ax[1].scatter(*zp.loc[st], s=18, color="#C8234B")
+    ax[1].annotate(st.split("(")[0], zp.loc[st], xytext=(4, 3), textcoords="offset points", fontsize=10)
+ax[1].set_xlabel("1주성분 (주거 ← → 일터)")
+ax[1].set_ylabel("2주성분")
+ax[1].set_title("240개 역의 2축 지도")
+plt.show()
+
+# ### 7-11d
+# ⑤ 결과 비교하기: 40칸으로 묶은 군집 vs 2축으로 묶은 군집
+lab40 = KMeans(n_clusters=3, n_init=10, random_state=42).fit_predict(Xp)
+lab2 = KMeans(n_clusters=3, n_init=10, random_state=42).fit_predict(Zp)
+print(pd.crosstab(lab40, lab2, rownames=["40칸"], colnames=["2축"]).to_string())
+
+plt.figure(figsize=(5, 3.4))
+for c, col in zip(range(3), ["#9a9a9a", "#C8234B", "#222222"]):
+    m = lab40 == c
+    plt.scatter(Zp[m, 0], Zp[m, 1], s=10, color=col, label=f"유형 {c} ({m.sum()}곳)")
+plt.xlabel("1주성분")
+plt.ylabel("2주성분")
+plt.legend(loc="lower left")
+plt.show()
 
 # ### MP-0
 # [더 알아보기] 공공데이터포털에서 받은 원자료로 이 책의 CSV 파일 만들기
@@ -388,3 +518,8 @@ sizes = pd.Series(lab[lab >= 0]).value_counts()
 print("밀집 지대:", len(sizes), "곳, 가장 큰 지대:", sizes.iloc[0], "건,",
       "노이즈:", round((lab == -1).mean() * 100, 1), "%")
 print("가장 큰 지대의 지역:", big["region"][lab == sizes.index[0]].value_counts().head(4).to_dict())
+ax = world_map("반지름 200km, 15개로 바꾼 뒤 가장 큰 지대")
+ax.scatter(big["longitude"], big["latitude"], s=2, color="#b0b0b0")
+one = big[lab == sizes.index[0]]
+ax.scatter(one["longitude"], one["latitude"], s=4, color="#E04B3C")
+plt.show()
