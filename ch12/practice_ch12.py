@@ -1,5 +1,5 @@
 # 12장. 작년 이맘때처럼: 시계열 분석 (개정판) — 05절 파이썬 실습과 미니 프로젝트 전체 코드
-# '# ### 12-k' 조각 하나가 책의 [파이썬 실습 12-k] 하나입니다. MP-k는 [미니 프로젝트 12]의 단계, EX-k는 연습문제 정답 코드입니다.
+# '# ### 12-k' 조각 하나가 책의 [파이썬 실습 12-k] 하나입니다. MP-k는 [미니 프로젝트 12]의 단계, EX-k는 연습문제 정답 코드(EX-더k는 개정판 책에서 빠지고 노트북에만 남은 [더 풀어 보기])입니다.
 # 실행: python3 practice_v2.py  (필요 라이브러리: pandas, numpy, matplotlib, scikit-learn, statsmodels, prophet, holidays)
 
 # ### 12-1
@@ -244,7 +244,7 @@ imp.plot.barh(color="#E04B3C", figsize=(6, 3))
 plt.xlabel("중요도")
 plt.show()
 
-# ### EX-6
+# ### EX-더1
 no_hol = [k for k in feats if "휴일" not in k]       # 휴일 두 열을 뺀다
 rf2 = RandomForestRegressor(n_estimators=300, min_samples_leaf=2, random_state=0, n_jobs=-1)
 rf2.fit(trB[no_hol], trB.y)

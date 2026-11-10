@@ -312,7 +312,7 @@ plt.show()
 te = te.assign(잔차=te["수요"] - u2.predict(te))
 print(te.nsmallest(5, "잔차")[["날짜", "수요", "기온", "쉬는날", "잔차"]].to_string(index=False, float_format="%.1f"))
 
-# ### EX-6
+# ### EX-5
 CUT2 = "2025-07-01"                                # 앞 6달로 배우고 뒤 6달로 시험
 train2, test2 = day[day["일시"] < CUT2], day[day["일시"] >= CUT2]
 for name in ["M1", "M3"]:

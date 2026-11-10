@@ -281,7 +281,7 @@ plt.show()
 for word in ["데이터", "AI"]:
     print(word, len(word.encode("utf-8")), len(word.encode("cp949")))
 
-# ### EX-3
+# ### EX-5
 from bs4 import BeautifulSoup
 html = """<ul class="news">
   <li><a href="/a1">첫 기사</a></li>

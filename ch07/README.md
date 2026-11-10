@@ -1,15 +1,15 @@
 # 7장 끼리끼리 모으기: 군집화
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/yeonu69/bigdata-python-book/blob/main/ch07/7%EC%9E%A5_%EA%B5%B0%EC%A7%91%ED%99%94_%EC%8B%A4%EC%8A%B5_colab_v3.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/yeonu69/bigdata-python-book/blob/main/ch07/7%EC%9E%A5_%EA%B5%B0%EC%A7%91%ED%99%94_%EC%8B%A4%EC%8A%B5_colab_v8.ipynb)
 
 | 파일 | 설명 |
 |---|---|
-| [`7장_군집화_실습_colab_v3.ipynb`](7%EC%9E%A5_%EA%B5%B0%EC%A7%91%ED%99%94_%EC%8B%A4%EC%8A%B5_colab_v3.ipynb) | 실습 노트북. 책의 [파이썬 실습], 미니 프로젝트, 연습문제 정답 코드가 책과 같은 번호로 들어 있습니다. |
+| [`7장_군집화_실습_colab_v8.ipynb`](7%EC%9E%A5_%EA%B5%B0%EC%A7%91%ED%99%94_%EC%8B%A4%EC%8A%B5_colab_v8.ipynb) | 실습 노트북. 책의 [파이썬 실습], 미니 프로젝트, 연습문제 정답 코드가 책과 같은 번호로 들어 있습니다. 실습 7-1·7-5·7-10과 노트북 끝의 [더 풀어 보기]가 지진을 세계지도 위에 찍고, 책에 없는 🗺️ **지도로 보기** 셀 3개가 지도로 분석을 더합니다. 실습 7-11 ☆은 PCA로 지하철역 240곳의 40칸짜리 하루 리듬을 두 축으로 줄입니다(지도 자료: [Natural Earth](https://www.naturalearthdata.com/), 퍼블릭 도메인). |
 | [`practice_ch07.py`](practice_ch07.py) | 같은 코드를 파이썬 파일 하나로 모은 것. `# ### 7-k` 조각 하나가 [파이썬 실습 7-k] 하나입니다. |
 
 ## 이 저장소에 들어 있는 데이터 (`data/`)
 
-노트북의 **데이터 받기** 셀이 이 파일들을 코랩으로 자동으로 내려받습니다.
+노트북의 **데이터 받기** 셀이 지하철 파일(실습 7-11과 미니 프로젝트)을 코랩으로 자동으로 내려받습니다. 지진 파일은 실습 7-1이 캐글([Significant Earthquakes](https://www.kaggle.com/datasets/usamabuttar/significant-earthquakes))에서 `kagglehub`로 먼저 받고, 받지 못하면 여기 있는 같은 파일을 받습니다. 책과 똑같은 숫자를 보려면 실습 7-1의 `USE_KAGGLE`을 `False`로 바꾸십시오.
 
 | 파일 | 쓰는 곳 | 크기 | 내용과 출처 | 읽을 때 |
 |---|---|---|---|---|
@@ -19,6 +19,9 @@
 ## 파이썬 파일로 실행하기
 
 ```bash
+pip install pandas scikit-learn scipy matplotlib geopandas kagglehub holidays
 cd ch07/data
 python ../practice_ch07.py
 ```
+
+`data` 폴더에 지진 파일이 있으면 캐글에서 다시 받지 않고 그 파일을 씁니다. `# ### MP-0` 조각은 공공데이터포털 원자료 CSV가 있어야 돌아가므로, 원자료가 없으면 그 조각을 지우고 실행하십시오.
