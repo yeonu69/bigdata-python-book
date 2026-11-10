@@ -405,7 +405,7 @@ ps = lrs.predict_proba(vs.transform(morphs(probe)))[:, 1]
 for s, a, b in zip(probe, pm, ps):
     print(f"영화 모델 {a:.3f}  쇼핑 모델 {b:.3f}  {s}")
 
-# ### EX-6
+# ### EX-4
 hand = (prob > 0.3) & (prob < 0.7)                           # 사람에게 넘길 리뷰
 print("사람에게 넘기는 리뷰:", hand.sum(), "개, 비율", round(hand.mean(), 3))
 print("모델이 맡은 리뷰의 정확도:", round((pred[~hand] == y_te[~hand]).mean(), 3))

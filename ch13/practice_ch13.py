@@ -1,6 +1,6 @@
 # 13장. 몸을 가진 AI (개정판) — 05절 파이썬 실습과 종합 프로젝트 전체 코드
 # '# ### 13-k' 조각 하나가 책의 [파이썬 실습 13-k] 하나입니다.
-# MP-k는 [미니 프로젝트 13] 종합 프로젝트의 출발 코드, EX-6은 연습문제 정답 코드입니다.
+# MP-k는 [미니 프로젝트 13] 종합 프로젝트의 출발 코드, EX-더1은 개정판 책에서 빠지고 노트북에만 남은 [더 풀어 보기] 정답 코드입니다.
 # 실행: python3 practice_rev.py  (필요 라이브러리: numpy, pandas, scikit-learn, matplotlib, scipy, holidays)
 
 # ### 13-1
@@ -394,7 +394,7 @@ C = C.iloc[:-1]
 print(C.shape, " 다음 날이 '나쁨' 이상인 날:", round(C["내일나쁨"].mean() * 100, 1), "%")
 print(C.groupby(C.index.month)["PM25"].mean().round(1).to_dict())
 
-# ### EX-6
+# ### EX-더1
 twf = df["TWF"] == 1
 print("공구 마모 고장(TWF):", twf.sum(), "건, 마모 시간",
       df.loc[twf, "Tool wear [min]"].min(), "~", df.loc[twf, "Tool wear [min]"].max(), "분")

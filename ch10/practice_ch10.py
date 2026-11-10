@@ -1,5 +1,5 @@
 # 10장. 스무고개와 집단지성: 결정나무와 앙상블 (개정판) — 05절 파이썬 실습과 미니 프로젝트 전체 코드
-# '# ### 10-k' 조각 하나가 책의 [파이썬 실습 10-k] 하나입니다. MP-k는 [미니 프로젝트 10]의 단계, EX-k는 연습문제 정답 코드입니다.
+# '# ### 10-k' 조각 하나가 책의 [파이썬 실습 10-k] 하나입니다. MP-k는 [미니 프로젝트 10]의 단계, EX-k는 연습문제 정답 코드(EX-더k는 개정판 책에서 빠지고 노트북에만 남은 [더 풀어 보기])입니다.
 # 실행: python3 practice_v2.py  (필요 라이브러리: pandas, numpy, scikit-learn, matplotlib)
 
 # ### 10-1
@@ -314,7 +314,7 @@ for s in ["Male", "Female"]:
     print(f"{s:6s}: 실제 5만 달러 초과 {ate.values[k].sum():4d}명, 모델이 찾은 비율 "
           f"{hit.sum() / ate.values[k].sum():.3f}")
 
-# ### EX-6
+# ### EX-더1
 drop = [c for c in X.columns if c == "day" or c.startswith("month_")]
 gb2 = boost(0.05, Xtr.drop(columns=drop), ytr)
 print("뺀 열:", len(drop), "개 / 시험 AUC:", round(auc(gb2, Xte.drop(columns=drop), yte), 3))

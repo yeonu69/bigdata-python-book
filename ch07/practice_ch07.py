@@ -1,6 +1,6 @@
 # 07장. 끼리끼리 모으기: 군집화 (개정판) — 05절 파이썬 실습과 미니 프로젝트 전체 코드
 # '# ### 7-k' 조각 하나가 책의 [파이썬 실습 7-k] 하나입니다. MP-k는 [미니 프로젝트 7]의 단계,
-# EX-k는 연습문제 정답 코드, S6-k는 06절 숫자를 확인하는 덤 코드입니다(책에는 코드가 실리지 않음).
+# EX-k는 연습문제 정답 코드(EX-더k는 개정판 책에서 빠지고 노트북에만 남은 [더 풀어 보기]), S6-k는 06절 숫자를 확인하는 덤 코드입니다(책에는 코드가 실리지 않음).
 # 실행: python3 practice_ch07.py  (필요 라이브러리: pandas, numpy, scikit-learn, scipy, matplotlib)
 
 # ### 7-1
@@ -510,7 +510,7 @@ off = offday.assign(t=offday[H].sum(axis=1) * offday["날수"]).groupby("역명"
 ratio = (off[share.index] / total).rename("쉬는날÷평일")
 print(ratio.groupby(share["유형"]).describe()[["count", "25%", "50%", "75%"]].round(2).to_string())
 
-# ### EX-6
+# ### EX-더1
 db2 = DBSCAN(eps=200 / 6371, min_samples=15,
              metric="haversine", algorithm="ball_tree").fit(rad)
 lab = db2.labels_
