@@ -1,10 +1,10 @@
 # 3장 지저분한 데이터 정리하기: 판다스와 데이터 정제
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/yeonu69/bigdata-python-book/blob/main/ch03/3%EC%9E%A5_%ED%8C%90%EB%8B%A4%EC%8A%A4%EC%99%80%EB%8D%B0%EC%9D%B4%ED%84%B0%EC%A0%95%EC%A0%9C_%EC%8B%A4%EC%8A%B5_colab_v2.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/yeonu69/bigdata-python-book/blob/main/ch03/3%EC%9E%A5_%ED%8C%90%EB%8B%A4%EC%8A%A4%EC%99%80%EB%8D%B0%EC%9D%B4%ED%84%B0%EC%A0%95%EC%A0%9C_%EC%8B%A4%EC%8A%B5_colab_v3.ipynb)
 
 | 파일 | 설명 |
 |---|---|
-| [`3장_판다스와데이터정제_실습_colab_v2.ipynb`](3%EC%9E%A5_%ED%8C%90%EB%8B%A4%EC%8A%A4%EC%99%80%EB%8D%B0%EC%9D%B4%ED%84%B0%EC%A0%95%EC%A0%9C_%EC%8B%A4%EC%8A%B5_colab_v2.ipynb) | 실습 노트북. 책의 [파이썬 실습], 미니 프로젝트, 연습문제 정답 코드가 책과 같은 번호로 들어 있습니다. |
+| [`3장_판다스와데이터정제_실습_colab_v3.ipynb`](3%EC%9E%A5_%ED%8C%90%EB%8B%A4%EC%8A%A4%EC%99%80%EB%8D%B0%EC%9D%B4%ED%84%B0%EC%A0%95%EC%A0%9C_%EC%8B%A4%EC%8A%B5_colab_v3.ipynb) | 실습 노트북. 책의 [파이썬 실습], 미니 프로젝트, 연습문제 정답 코드가 책과 같은 번호로 들어 있습니다. |
 | [`practice_ch03.py`](practice_ch03.py) | 같은 코드를 파이썬 파일 하나로 모은 것. `# ### 3-k` 조각 하나가 [파이썬 실습 3-k] 하나입니다. |
 | [데이터 정제 시뮬레이터](https://yeonu69.github.io/bigdata-python-book/sim/ch03/) | 책 04절의 [시뮬레이터로 해 보기]. 웹 브라우저에서 날짜 형식 읽기, 0과 결측값 채우기, 중앙값과 IQR 울타리로 튀는 값 찾기, 공휴일 표 합치기를 직접 움직여 봅니다. 책의 따릉이 데이터로 계산한 값이 들어 있습니다. 파일: [`sim/ch03/index.html`](../sim/ch03/index.html) |
 
