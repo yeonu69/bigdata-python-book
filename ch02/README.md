@@ -6,6 +6,7 @@
 |---|---|
 | [`2장_파이썬과넘파이_실습_colab_v2.ipynb`](2%EC%9E%A5_%ED%8C%8C%EC%9D%B4%EC%8D%AC%EA%B3%BC%EB%84%98%ED%8C%8C%EC%9D%B4_%EC%8B%A4%EC%8A%B5_colab_v2.ipynb) | 실습 노트북. 책의 [파이썬 실습], 미니 프로젝트, 연습문제 정답 코드가 책과 같은 번호로 들어 있습니다. |
 | [`practice_ch02.py`](practice_ch02.py) | 같은 코드를 파이썬 파일 하나로 모은 것. `# ### 2-k` 조각 하나가 [파이썬 실습 2-k] 하나입니다. |
+| [넘파이 배열 시뮬레이터](https://yeonu69.github.io/bigdata-python-book/sim/ch02/) | 책 04절의 [시뮬레이터로 해 보기]. 서울 따릉이 8,760시간 실제 기록으로 reshape 접기, axis 방향 계산, 마스크로 고르기, 내적·브로드캐스팅·표준화를 손으로 움직여 봅니다. 인터넷 없이 열리는 HTML 파일 하나. 파일: [`sim/ch02/index.html`](../sim/ch02/index.html) |
 
 ## 이 저장소에 들어 있는 데이터 (`data/`)
 
