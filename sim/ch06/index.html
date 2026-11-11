@@ -1,0 +1,612 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>
+<title>데이터 불러오기 시뮬레이터</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@400;600;800&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* 레이아웃: 모눈종이 위 그래프(왼쪽)와 계산 노트(오른쪽). 좁으면 위아래로 쌓인다. */
+:root{
+  --bg:#f5f6f3; --paper:#ffffff; --grid:#e3e7e1; --grid2:#cfd6cd; --ink:#1f2a24; --muted:#5d6b63;
+  --line:#c8234b; --line-soft:rgba(200,35,75,.14); --pt:#24527a; --pt-soft:rgba(36,82,122,.18);
+  --mean:#8a6d1d; --mine:#2f8f5b; --band:rgba(36,82,122,.10); --sq:rgba(200,35,75,.13);
+  --chip:#eef1ec; --border:#d5dbd3;
+  --f-head:"Gothic A1","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --f-body:"Gothic A1","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141917; --paper:#1b211e; --grid:#27302b; --grid2:#33403a; --ink:#e6ece7; --muted:#9aa9a0;
+  --line:#ff5c7f; --line-soft:rgba(255,92,127,.18); --pt:#7fb6e6; --pt-soft:rgba(127,182,230,.2);
+  --mean:#d8b45a; --mine:#5fd394; --band:rgba(127,182,230,.12); --sq:rgba(255,92,127,.16);
+  --chip:#232b27; --border:#34403a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141917; --paper:#1b211e; --grid:#27302b; --grid2:#33403a; --ink:#e6ece7; --muted:#9aa9a0;
+  --line:#ff5c7f; --line-soft:rgba(255,92,127,.18); --pt:#7fb6e6; --pt-soft:rgba(127,182,230,.2);
+  --mean:#d8b45a; --mine:#5fd394; --band:rgba(127,182,230,.12); --sq:rgba(255,92,127,.16);
+  --chip:#232b27; --border:#34403a; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+header h1{font-family:var(--f-head);font-weight:800;font-size:1.65rem;margin:0;letter-spacing:-.01em;text-wrap:balance}
+header p{margin:4px 0 0;color:var(--muted);max-width:70ch}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;border-bottom:1px solid var(--border);padding-bottom:8px}
+.tab{font:600 .95rem var(--f-body);border:1px solid var(--border);background:var(--paper);color:var(--ink);
+  padding:7px 14px;border-radius:8px;cursor:pointer}
+.tab[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tab:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--line);outline-offset:2px}
+.panel{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:860px){.panel{grid-template-columns:minmax(0,1fr)}}
+.stage{background:var(--paper);border:1px solid var(--border);border-radius:10px;padding:10px;min-width:0}
+.stage svg,.stage canvas{display:block;width:100%;height:auto;touch-action:none;user-select:none}
+.hint{font-size:.85rem;color:var(--muted);margin:6px 4px 0}
+.side{display:flex;flex-direction:column;gap:14px;min-width:0}
+.card{background:var(--paper);border:1px solid var(--border);border-radius:10px;padding:14px 16px;min-width:0}
+.card h2{font:800 1rem var(--f-head);margin:0 0 8px}
+.eq{font-family:var(--f-num);font-size:1.25rem;font-weight:600;color:var(--line);overflow-x:auto;white-space:nowrap}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px;margin-top:10px}
+.stat{display:flex;flex-direction:column;border-top:1px solid var(--grid2);padding-top:6px}
+.stat b{font:600 .78rem var(--f-body);color:var(--muted);letter-spacing:.02em}
+.stat span{font:600 1.1rem var(--f-num);font-variant-numeric:tabular-nums}
+.read{font-size:.92rem;margin:10px 0 0}
+.row{display:flex;flex-wrap:wrap;gap:6px}
+button.b{font:600 .85rem var(--f-body);border:1px solid var(--border);background:var(--chip);color:var(--ink);
+  padding:6px 11px;border-radius:7px;cursor:pointer}
+button.b:hover{border-color:var(--ink)}
+button.b.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+label.sl{display:grid;grid-template-columns:7.5em minmax(0,1fr) 4.2em;gap:8px;align-items:center;font-size:.88rem;margin:4px 0}
+label.sl output{font-family:var(--f-num);text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--line)}
+.chk{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.88rem;margin-top:8px}
+.chk label{display:flex;gap:5px;align-items:center;cursor:pointer}
+details{font-size:.9rem}
+details summary{cursor:pointer;font-weight:600}
+.calc{font-family:var(--f-num);font-size:.82rem;background:var(--chip);border-radius:7px;padding:10px;margin-top:8px;overflow-x:auto;white-space:pre;line-height:1.55}
+.box{background:var(--chip);border-radius:8px;padding:10px 12px;font-size:.88rem}
+.box strong{display:block;margin-bottom:2px}
+table.t{border-collapse:collapse;width:100%;font-size:.88rem}
+table.t th,table.t td{border-bottom:1px solid var(--grid2);padding:5px 6px;text-align:right;font-variant-numeric:tabular-nums}
+table.t th:first-child,table.t td:first-child{text-align:left}
+table.t td{font-family:var(--f-num)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.8rem;color:var(--muted);margin:6px 4px 0}
+.legend i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:4px}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (max-width:520px){.two{grid-template-columns:minmax(0,1fr)}}
+svg text{font-family:var(--f-body)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+<style>
+.sub{font-size:.8rem;color:var(--muted);margin:8px 0 0}
+select.sel{font:600 .88rem var(--f-body);padding:5px 8px;border-radius:7px;border:1px solid var(--border);background:var(--paper);color:var(--ink);max-width:100%}
+input.num{width:8.5em;font:600 .92rem var(--f-num);padding:4px 7px;border-radius:6px;border:1px solid var(--border);background:var(--paper);color:var(--ink)}
+.bytes{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 2px}
+.ch{display:flex;flex-direction:column;align-items:center;border:1px solid var(--border);border-radius:8px;padding:4px 5px;min-width:2.6em;background:var(--paper)}
+.ch .g{font:800 1.15rem var(--f-head);min-height:1.5em;white-space:pre}
+.ch .bs{display:flex;gap:2px}
+.ch .bs span{font:600 .74rem var(--f-num);padding:1px 3px;border-radius:4px;background:var(--pt-soft)}
+.ch.k .bs span{background:var(--line-soft)}
+.ch.bom{border-style:dashed}
+.rowlab{font:600 .82rem var(--f-body);color:var(--muted);margin-top:12px}
+.out{font:600 1.05rem var(--f-num);background:var(--chip);border-radius:8px;padding:8px 10px;margin-top:6px;overflow-x:auto;white-space:pre-wrap;word-break:break-all}
+.out.err{color:var(--line)}
+input.txt{width:100%;font:600 1.05rem var(--f-body);padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--paper);color:var(--ink)}
+.files{display:grid;grid-template-columns:repeat(auto-fill,minmax(7.6em,1fr));gap:6px;margin-top:4px}
+.file{border:1px solid var(--border);border-radius:8px;padding:6px 7px;background:var(--paper);cursor:pointer;font-size:.8rem;text-align:left;color:var(--ink);font-family:var(--f-body)}
+.file b{display:block;font-size:.86rem}
+.file span{font-family:var(--f-num);color:var(--muted)}
+.file.off{opacity:.38;text-decoration:line-through}
+.file.dup{box-shadow:0 0 0 2px var(--mean) inset}
+.ok{color:var(--mine);font-weight:800} .bad{color:var(--line);font-weight:800}
+.q{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;min-height:1.8em}
+.q span{font:600 .72rem var(--f-num);background:var(--chip);border-radius:5px;padding:2px 5px}
+.log{font:500 .78rem var(--f-num);background:var(--chip);border-radius:7px;padding:8px;margin-top:8px;height:8.5em;overflow-y:auto;white-space:pre-wrap}
+</style>
+
+
+<div class="wrap">
+<header>
+  <h1>데이터 불러오기 시뮬레이터</h1>
+  <p>『빅데이터분석 with 파이썬』 6장 「파일에서, 웹에서: 데이터 불러오기」의 개념을 손으로 움직여 봅니다. 글자를 바이트로 바꾸어 보고, 파일 크기와 읽는 시간을 어림하고, 엑셀 12개를 합쳐 검산하고, 연습 사이트를 예의 바르게 돌며 측정소 25곳을 모읍니다. 책의 실제 숫자(에어코리아 서울 2025년 엑셀 12개, 연습 사이트 28쪽)가 들어 있습니다.</p>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab" role="tab" aria-selected="true" data-p="p-enc">① 인코딩: 글자는 숫자</button>
+  <button class="tab" role="tab" aria-selected="false" data-p="p-size">② 크기와 시간 어림하기</button>
+  <button class="tab" role="tab" aria-selected="false" data-p="p-merge">③ 합치기와 검산, 24시</button>
+  <button class="tab" role="tab" aria-selected="false" data-p="p-web">④ 웹에서 모으기</button>
+</nav>
+
+<!-- ① 인코딩 -->
+<section class="panel" id="p-enc">
+  <div class="stage">
+    <label class="rowlab" for="e-in">글자를 입력하세요</label>
+    <input class="txt" id="e-in" value="서울 2025" maxlength="40" autocomplete="off">
+    <div class="rowlab">UTF-8로 저장하면 (한글 한 글자 = 3바이트)</div>
+    <div class="bytes" id="e-u"></div>
+    <div class="rowlab">CP949로 저장하면 (한글 한 글자 = 2바이트)</div>
+    <div class="bytes" id="e-k"></div>
+    <div class="rowlab">저장한 약속과 다른 약속으로 읽으면</div>
+    <div class="row" style="align-items:center;gap:8px;margin-top:4px">
+      <select class="sel" id="e-w"><option value="utf-8">UTF-8로 저장</option><option value="cp949">CP949로 저장</option></select>
+      <span>→</span>
+      <select class="sel" id="e-r"><option value="cp949">CP949로 읽기</option><option value="utf-8">UTF-8로 읽기</option><option value="utf-8-sig">utf-8-sig로 읽기</option></select>
+    </div>
+    <div class="out" id="e-out"></div>
+    <p class="hint">칸 하나가 글자 하나이고, 아래 작은 상자가 그 글자를 저장한 바이트(16진수)입니다. 빈칸과 숫자, 영어는 두 약속 모두 1바이트입니다.</p>
+  </div>
+  <div class="side">
+    <div class="card">
+      <h2>바이트 수 = Σ (글자마다의 바이트 수) &nbsp;(식 6-1)</h2>
+      <div class="stats">
+        <div class="stat"><b>글자 수</b><span id="e-n">–</span></div>
+        <div class="stat"><b>한글 글자 수</b><span id="e-h">–</span></div>
+        <div class="stat"><b>UTF-8 바이트</b><span id="e-nu">–</span></div>
+        <div class="stat"><b>CP949 바이트</b><span id="e-nk">–</span></div>
+      </div>
+      <div class="calc" id="e-calc"></div>
+      <div class="chk"><label><input type="checkbox" id="e-bom"> UTF-8 맨 앞에 BOM(ef bb bf) 붙이기 = utf-8-sig</label></div>
+    </div>
+    <div class="card">
+      <h2>예로 넣어 보기</h2>
+      <div class="row">
+        <button class="b" data-s="서울 2025">서울 2025 (예제 6-1)</button>
+        <button class="b" data-s="지점">지점 (실습 6-1)</button>
+        <button class="b" data-s="기온">기온</button>
+        <button class="b" data-s="데이터 불러오기">데이터 불러오기</button>
+        <button class="b" data-s="PM2.5 = 18.1">PM2.5 = 18.1</button>
+      </div>
+    </div>
+    <div class="box"><strong>해 볼 것</strong>① "서울 2025"는 일곱 글자지만 UTF-8 11바이트, CP949 9바이트입니다(예제 6-1). ② "지점"을 CP949로 저장하고 UTF-8로 읽으면 첫 바이트 0xc1에서 오류가 납니다. 실습 6-1의 오류 메시지와 같습니다. ③ UTF-8로 저장하고 CP949로 읽으면 "서울"은 오류가 나지만, "기온"은 오류 없이 "湲곗삩"이 됩니다. 오류가 없으니 더 위험합니다. ④ BOM을 켜고 UTF-8로 읽으면 첫 글자 앞에 보이지 않는 BOM이 붙습니다. 첫 열 이름이 이상해지는 까닭이고, utf-8-sig로 읽으면 사라집니다.</div>
+  </div>
+</section>
+
+<!-- ② 크기와 시간 어림하기 -->
+<section class="panel" id="p-size" hidden>
+  <div class="stage">
+    <svg id="sv" viewBox="0 0 640 430" aria-label="파일 형식별 크기와 읽는 시간"></svg>
+    <p class="hint">위: 같은 한 달 치 자료(495,775행 12열)를 세 형식으로 저장한 크기. 점선은 (식 6-2)로 어림한 크기입니다. 아래: 고른 파일 수를 모두 읽는 데 걸리는 시간(식 6-3). 책 3.3절에서 잰 값입니다.</p>
+    <div class="legend"><span><i style="background:var(--pt)"></i>실제 크기·시간</span><span><i style="background:var(--line)"></i>어림한 크기</span></div>
+  </div>
+  <div class="side">
+    <div class="card">
+      <h2>크기 ≈ 행 × 열 × 칸당 바이트 &nbsp;(식 6-2)</h2>
+      <label class="sl">행 수 <input type="range" id="s-r" min="10000" max="1000000" step="25" value="495775"><output id="s-ro">495,775</output></label>
+      <label class="sl">열 수 <input type="range" id="s-c" min="1" max="40" step="1" value="12"><output id="s-co">12</output></label>
+      <label class="sl">칸당 바이트 <input type="range" id="s-b" min="1" max="30" step="0.5" value="10"><output id="s-bo">10</output></label>
+      <div class="stats">
+        <div class="stat"><b>어림한 크기</b><span id="s-size">–</span></div>
+        <div class="stat"><b>실제 CSV와 견주면</b><span id="s-vs">–</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>시간 ≈ 파일 수 × 파일 하나의 시간 &nbsp;(식 6-3)</h2>
+      <label class="sl">파일 수 <input type="range" id="s-f" min="1" max="400" step="1" value="40"><output id="s-fo">40</output></label>
+      <div class="row" id="s-fmt">
+        <button class="b on" data-f="0">엑셀 58초</button>
+        <button class="b" data-f="1">CSV 1.3초</button>
+        <button class="b" data-f="2">파케이 0.08초</button>
+      </div>
+      <div class="stats">
+        <div class="stat"><b>모두 읽는 시간</b><span id="s-t">–</span></div>
+        <div class="stat"><b>한 번 읽어 파케이로 저장한 뒤</b><span id="s-t2">–</span></div>
+      </div>
+      <div class="calc" id="s-calc"></div>
+      <div class="row" style="margin-top:8px"><button class="b" id="s-ex">예제 6-2로 되돌리기</button><button class="b" id="s-day">일별 매출 파일 365개</button></div>
+    </div>
+    <div class="box"><strong>해 볼 것</strong>① 예제 6-2: 495,775 × 12 × 10 ≈ 59.5MB, 엑셀 40개는 40 × 58초 = 2,320초(약 39분)입니다. ② 형식을 CSV로 바꾸면 52초, 파케이로 바꾸면 3.2초입니다. 원본을 한 번만 읽고 저장해 두자는 판단이 여기서 섭니다. ③ 칸당 바이트를 움직여 실제 CSV 크기(70.2MB)에 맞는 값을 찾아보세요. ④ 일별 매출 파일 365개라면 몇 분이 걸릴지 어림해 보세요.</div>
+  </div>
+</section>
+
+<!-- ③ 합치기와 검산 -->
+<section class="panel" id="p-merge" hidden>
+  <div class="stage">
+    <div class="row" style="align-items:center;gap:8px">
+      <span class="rowlab" style="margin:0">읽는 순서</span>
+      <button class="b" id="m-name">글자 순서 (sorted(files))</button>
+      <button class="b on" id="m-month">달 순서 (key=month_of)</button>
+    </div>
+    <div class="files" id="m-files"></div>
+    <p class="hint">파일을 누르면 "빠뜨린 파일"이 됩니다. 다시 누르면 돌아옵니다. 아래 단추로 한 파일을 두 번 읽을 수도 있습니다.</p>
+    <svg id="mv" viewBox="0 0 640 260" aria-label="달별 행 수와 기대 행 수"></svg>
+    <div class="legend"><span><i style="background:var(--pt)"></i>합친 표의 달별 행 수</span><span><i style="background:var(--line)"></i>기대 행 수 = 40곳 × 날 수 × 24</span></div>
+  </div>
+  <div class="side">
+    <div class="card">
+      <h2>Σ nₖ = N (식 6-4), 기대 = 측정소 × 날 × 24 (식 6-5)</h2>
+      <div class="stats">
+        <div class="stat"><b>읽은 파일 K</b><span id="m-k">–</span></div>
+        <div class="stat"><b>합친 표 N</b><span id="m-n">–</span></div>
+        <div class="stat"><b>기대 행 수 (1년)</b><span id="m-e">–</span></div>
+        <div class="stat"><b>검산</b><span id="m-ok">–</span></div>
+      </div>
+      <p class="read" id="m-read"></p>
+      <div class="row" style="margin-top:8px">
+        <select class="sel" id="m-dsel"></select>
+        <button class="b" id="m-dup">이 파일 두 번 읽기</button>
+        <button class="b" id="m-reset">처음대로</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>24시를 다음 날 0시로: a = 100q + r (식 6-6)</h2>
+      <label class="sl" style="grid-template-columns:5em minmax(0,1fr)">측정일시 a <input class="num" id="h-a" value="2025013124" inputmode="numeric"></label>
+      <div class="calc" id="h-calc"></div>
+      <div class="row" style="margin-top:6px">
+        <button class="b" data-h="2025013124">2025013124</button>
+        <button class="b" data-h="2025010124">2025010124</button>
+        <button class="b" data-h="2025123124">2025123124</button>
+        <button class="b" data-h="2025030107">2025030107</button>
+      </div>
+    </div>
+    <div class="box"><strong>해 볼 것</strong>① "글자 순서"를 누르면 10월·11월·12월이 1월보다 앞에 섭니다(3.2절). ② 2월 파일을 빠뜨리면 N = 323,520으로 기대 350,400보다 26,880줄 모자라고, 빠진 달 [2]가 나옵니다. ③ 1월을 두 번 읽으면 N = 380,160입니다. 부분의 합은 맞아도 기대 행 수와 어긋나 겹친 파일을 찾아냅니다. ④ 2025013124는 몫 20250131과 나머지 24로 나뉘어 2월 1일 0시가 됩니다(예제 6-4).</div>
+  </div>
+</section>
+
+<!-- ④ 웹에서 모으기 -->
+<section class="panel" id="p-web" hidden>
+  <div class="stage">
+    <svg id="wv" viewBox="0 0 640 300" aria-label="연습 사이트의 목록 세 쪽과 측정소 25쪽"></svg>
+    <p class="hint">가운데 위: robots.txt. 왼쪽: 목록 세 쪽("다음" 링크로 이어짐). 오른쪽: 측정소 25쪽. 다녀온 페이지는 색이 채워지고, 지금 가는 페이지는 진홍 테두리입니다.</p>
+    <svg id="wb" viewBox="0 0 640 330" aria-label="모은 구별 PM2.5"></svg>
+    <p class="hint">측정소 페이지를 하나 받을 때마다 그 구의 2025년 PM2.5(달 평균 12개의 평균)가 막대로 더해집니다.</p>
+  </div>
+  <div class="side">
+    <div class="card">
+      <h2>요청 → 응답 → 파싱 → 다음 주소</h2>
+      <label class="rowlab" for="w-ua">User-Agent</label>
+      <select class="sel" id="w-ua" style="width:100%">
+        <option value="def">python-requests/2.32 (기본값)</option>
+        <option value="bot" selected>data-class-bot/1.0 (book ch6 practice)</option>
+      </select>
+      <label class="sl">쉬는 시간 <input type="range" id="w-d" min="0" max="3" step="0.5" value="1"><output id="w-do">1초</output></label>
+      <div class="row">
+        <button class="b" id="w-step">요청 한 번</button>
+        <button class="b" id="w-run">끝까지 (빠르게 보기)</button>
+        <button class="b" id="w-reset">처음부터</button>
+      </div>
+      <div class="stats">
+        <div class="stat"><b>요청 수</b><span id="w-n">0</span></div>
+        <div class="stat"><b>마지막 상태 코드</b><span id="w-s">–</span></div>
+        <div class="stat"><b>모은 측정소</b><span id="w-c">0 / 25</span></div>
+        <div class="stat"><b>쉬는 시간의 합</b><span id="w-t">0초</span></div>
+      </div>
+      <div class="rowlab">가 볼 주소의 대기열</div>
+      <div class="q" id="w-q"></div>
+      <div class="log" id="w-log"></div>
+    </div>
+    <div class="card">
+      <h2>robots.txt에 묻기: can_fetch</h2>
+      <div class="calc">User-agent: *
+Disallow: /admin/
+Crawl-delay: 1</div>
+      <div class="row" style="margin-top:6px">
+        <button class="b" data-r="/list/1.html">/list/1.html</button>
+        <button class="b" data-r="/station/111121.html">/station/111121.html</button>
+        <button class="b" data-r="/admin/index.html">/admin/index.html</button>
+      </div>
+      <p class="read" id="w-rb"></p>
+    </div>
+    <div class="box"><strong>해 볼 것</strong>① User-Agent를 기본값으로 두고 요청하면 403(거절)입니다. 이름과 목적을 밝히면 200입니다(실습 6-4). ② "요청 한 번"을 눌러 목록 3쪽을 "다음" 링크로 넘기는 동안 대기열에 측정소 주소가 쌓이는 것을 보세요(6.1절). ③ 끝까지 돌리면 28번 요청, 1초씩 쉬어 28초입니다. 측정소 25곳, 300칸 가운데 빈칸 3칸, 가장 낮은 구는 은평구 15.4, 가장 높은 구는 구로구 20.9입니다(실습 6-6). ④ 쉬는 시간을 0으로 하면 빨라지지만 robots.txt의 약속을 어깁니다.</div>
+  </div>
+</section>
+</div>
+
+<script>
+(() => {
+"use strict";
+const D = {"stations": [{"gu": "중구", "code": "111121", "page": 1, "pm": [30.0, 21.7, 31.5, 21.4, 19.8, 18.2, 14.6, 12.7, 9.4, 9.4, 23.2, 20.7]}, {"gu": "종로구", "code": "111123", "page": 1, "pm": [31.5, 23.4, 33.1, 23.2, 20.4, 19.2, 14.7, 13.4, 10.0, 9.9, 22.6, 20.9]}, {"gu": "용산구", "code": "111131", "page": 1, "pm": [26.9, 19.8, 29.0, 21.3, 20.5, 20.3, 17.2, 15.0, 9.0, 8.1, 18.5, 17.1]}, {"gu": "광진구", "code": "111141", "page": 1, "pm": [25.1, 19.3, 26.4, 21.1, 20.2, 18.8, 14.9, 13.9, 9.1, 8.4, 20.8, 18.3]}, {"gu": "성동구", "code": "111142", "page": 1, "pm": [24.0, 17.3, 27.2, 19.8, 18.7, 18.7, 14.2, 12.8, 10.0, 9.3, 19.5, 16.6]}, {"gu": "중랑구", "code": "111151", "page": 1, "pm": [28.4, 22.5, 31.6, 23.6, 21.7, 19.4, 14.2, 13.5, 7.9, 7.0, 21.4, 19.7]}, {"gu": "동대문구", "code": "111152", "page": 1, "pm": [27.7, 21.0, 30.7, 21.2, 19.2, 18.9, 14.9, 13.7, 9.0, 7.9, 19.8, 19.2]}, {"gu": "성북구", "code": "111161", "page": 1, "pm": [26.0, 18.7, 26.9, 19.6, 20.0, 17.0, 9.9, 8.7, 8.6, 9.3, 22.1, 20.9]}, {"gu": "도봉구", "code": "111171", "page": 1, "pm": [24.7, 16.6, 25.5, 16.9, 13.3, 11.7, 8.1, 7.9, 8.5, 9.4, 23.0, 21.4]}, {"gu": "은평구", "code": "111181", "page": 1, "pm": [22.8, 16.0, 25.5, 18.0, 16.3, 15.9, 11.4, 7.5, 4.9, 6.2, 20.6, 19.4]}, {"gu": "서대문구", "code": "111191", "page": 2, "pm": [25.3, 17.7, 26.6, 21.9, 19.1, 12.5, 7.8, 8.9, 9.1, 10.0, 22.7, 20.7]}, {"gu": "마포구", "code": "111201", "page": 2, "pm": [26.9, 21.8, 29.5, 21.2, 20.1, 18.2, 14.7, 13.1, 10.6, 9.2, 21.9, 20.3]}, {"gu": "강서구", "code": "111212", "page": 2, "pm": [27.7, 19.6, 30.0, 20.4, 19.2, 20.0, 16.4, 13.5, 9.6, 8.8, 20.5, 19.3]}, {"gu": "구로구", "code": "111221", "page": 2, "pm": [29.8, 24.2, 36.2, 27.0, 23.6, 20.5, 12.9, 8.7, 11.3, 12.4, 23.7, 20.8]}, {"gu": "영등포구", "code": "111231", "page": 2, "pm": [27.8, 20.8, 30.9, 22.2, 20.9, 19.6, 15.7, 14.2, 11.3, 10.3, 21.8, 19.7]}, {"gu": "동작구", "code": "111241", "page": 2, "pm": [29.8, 22.7, 32.1, 22.2, 17.8, 15.1, 12.5, 11.1, 8.9, 8.3, 20.6, 19.9]}, {"gu": "관악구", "code": "111251", "page": 2, "pm": [26.8, 20.6, 30.8, null, null, 9.8, 9.5, 12.8, 10.0, 8.7, 21.8, 18.6]}, {"gu": "강남구", "code": "111261", "page": 2, "pm": [27.4, 20.6, 28.8, 21.7, 20.2, 17.5, 13.6, 12.7, 8.5, 7.3, 20.3, 18.1]}, {"gu": "서초구", "code": "111262", "page": 2, "pm": [28.7, 20.9, 33.2, 24.1, 21.3, 17.5, 11.1, 8.8, 8.8, 9.7, 24.7, 22.1]}, {"gu": "송파구", "code": "111273", "page": 2, "pm": [24.7, 19.1, 28.0, 20.6, 19.6, 18.0, 14.3, 13.8, 8.8, 8.0, 19.1, 16.9]}, {"gu": "강동구", "code": "111274", "page": 3, "pm": [31.6, 25.1, 35.1, 25.4, 23.1, 21.0, 13.3, 11.9, 8.3, 9.1, 24.7, 21.8]}, {"gu": "금천구", "code": "111281", "page": 3, "pm": [28.4, 22.3, 31.7, 21.7, 20.6, 17.6, 15.4, 13.0, 10.2, 9.0, 22.3, null]}, {"gu": "강북구", "code": "111291", "page": 3, "pm": [28.9, 22.4, 30.3, 23.1, 22.0, 19.7, 10.9, 8.5, 7.9, 6.9, 19.1, 16.4]}, {"gu": "양천구", "code": "111301", "page": 3, "pm": [31.6, 23.6, 32.5, 22.2, 20.5, 18.3, 13.6, 12.1, 9.2, 8.6, 19.6, 18.0]}, {"gu": "노원구", "code": "111311", "page": 3, "pm": [31.6, 25.2, 28.1, 22.4, 16.0, 16.1, 12.9, 12.0, 8.4, 8.6, 22.6, 20.3]}], "files": [{"name": "2025년 1월.xlsx", "m": 1, "n": 29760, "days": 31, "st": 40}, {"name": "2025년 2월.xlsx", "m": 2, "n": 26880, "days": 28, "st": 40}, {"name": "2025년 3월.xlsx", "m": 3, "n": 29760, "days": 31, "st": 40}, {"name": "2025년 4월.xlsx", "m": 4, "n": 28800, "days": 30, "st": 40}, {"name": "2025년 5월.xlsx", "m": 5, "n": 29760, "days": 31, "st": 40}, {"name": "2025년 6월.xlsx", "m": 6, "n": 28800, "days": 30, "st": 40}, {"name": "2025년 7월.xlsx", "m": 7, "n": 29760, "days": 31, "st": 40}, {"name": "2025년 8월.xlsx", "m": 8, "n": 29760, "days": 31, "st": 40}, {"name": "2025년 9월.xlsx", "m": 9, "n": 28800, "days": 30, "st": 40}, {"name": "2025년 10월.xlsx", "m": 10, "n": 29760, "days": 31, "st": 40}, {"name": "2025년 11월.xlsx", "m": 11, "n": 28800, "days": 30, "st": 40}, {"name": "2025년 12월.xlsx", "m": 12, "n": 29760, "days": 31, "st": 40}]};
+const $ = id => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+const fmt = (v, d = 0) => (v === null || !isFinite(v)) ? "–" : v.toLocaleString("ko-KR", {minimumFractionDigits: d, maximumFractionDigits: d});
+const hx = b => b.toString(16).padStart(2, "0");
+function el(tag, attrs = {}, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function txt(parent, x, y, s, a = {}) { const t = el("text", Object.assign({x, y, "font-size": 11, fill: "var(--muted)"}, a), parent); t.textContent = s; return t; }
+const clear = svg => { while (svg.firstChild) svg.removeChild(svg.firstChild); };
+
+/* 탭 */
+const tabs = [...document.querySelectorAll(".tab")];
+function show(btn) {
+  tabs.forEach(t => { const on = t === btn; t.setAttribute("aria-selected", on); $(t.dataset.p).hidden = !on; });
+  drawAll();
+}
+tabs.forEach(t => t.addEventListener("click", () => show(t)));
+
+/* ───────── ① 인코딩 ───────── */
+// CP949 표: 브라우저의 euc-kr(= windows-949) 해독기로 두 바이트 묶음을 모두 풀어 거꾸로 찾는 표를 만든다.
+const CP = new Map(), CPOK = new Set();
+(() => {
+  const dec = new TextDecoder("euc-kr");
+  for (let l = 0x81; l <= 0xfe; l++) for (let t = 0x41; t <= 0xfe; t++) {
+    const s = dec.decode(Uint8Array.of(l, t));
+    if (s.length === 1 && s !== "�" && s.charCodeAt(0) > 0x7f) { CPOK.add(l * 256 + t); if (!CP.has(s)) CP.set(s, [l, t]); }
+  }
+})();
+const u8 = ch => [...new TextEncoder().encode(ch)];
+const cp = ch => ch.charCodeAt(0) < 0x80 ? [ch.charCodeAt(0)] : (CP.get(ch) || null);
+const isHangul = ch => /[가-힣]/.test(ch);
+function utf8Err(b) {   // 파이썬과 같은 꼴의 오류 문장, 없으면 null
+  for (let i = 0; i < b.length;) {
+    const x = b[i];
+    let n = x < 0x80 ? 0 : x >= 0xc2 && x <= 0xdf ? 1 : x >= 0xe0 && x <= 0xef ? 2 : x >= 0xf0 && x <= 0xf4 ? 3 : -1;
+    if (n < 0) return `UnicodeDecodeError: 'utf-8' codec can't decode byte 0x${hx(x)} in position ${i}: invalid start byte`;
+    for (let k = 1; k <= n; k++) {
+      if (i + k >= b.length) return `UnicodeDecodeError: 'utf-8' codec can't decode byte 0x${hx(x)} in position ${i}: unexpected end of data`;
+      if ((b[i + k] & 0xc0) !== 0x80) return `UnicodeDecodeError: 'utf-8' codec can't decode byte 0x${hx(x)} in position ${i}: invalid continuation byte`;
+    }
+    i += n + 1;
+  }
+  return null;
+}
+function cpErr(b) {
+  for (let i = 0; i < b.length;) {
+    if (b[i] < 0x80) { i++; continue; }
+    if (i + 1 < b.length && CPOK.has(b[i] * 256 + b[i + 1])) { i += 2; continue; }
+    return `UnicodeDecodeError: 'cp949' codec can't decode byte 0x${hx(b[i])} in position ${i}: illegal multibyte sequence`;
+  }
+  return null;
+}
+function cells(box, chars, enc, bom) {
+  box.innerHTML = "";
+  if (bom) box.insertAdjacentHTML("beforeend", `<div class="ch bom"><div class="g" style="font-size:.8rem;color:var(--muted)">BOM</div><div class="bs"><span>ef</span><span>bb</span><span>bf</span></div></div>`);
+  for (const ch of chars) {
+    const b = enc === "u" ? u8(ch) : cp(ch);
+    const show = ch === " " ? "␣" : ch;
+    const bs = b ? b.map(x => `<span>${hx(x)}</span>`).join("") : `<span style="background:none;color:var(--line)">저장 불가</span>`;
+    box.insertAdjacentHTML("beforeend", `<div class="ch${enc === "k" ? " k" : ""}"><div class="g"></div><div class="bs">${bs}</div></div>`);
+    box.lastElementChild.firstElementChild.textContent = show;
+  }
+}
+function drawEnc() {
+  const s = $("e-in").value, chars = [...s], bom = $("e-bom").checked;
+  cells($("e-u"), chars, "u", bom); cells($("e-k"), chars, "k", false);
+  const nu = chars.reduce((a, c) => a + u8(c).length, 0) + (bom ? 3 : 0);
+  const kb = chars.map(cp), bad = kb.some(b => !b);
+  const nk = bad ? null : kb.reduce((a, b) => a + b.length, 0);
+  const nh = chars.filter(isHangul).length;
+  $("e-n").textContent = chars.length; $("e-h").textContent = nh;
+  $("e-nu").textContent = nu; $("e-nk").textContent = nk === null ? "저장 불가" : nk;
+  const other = chars.length - nh;
+  $("e-calc").textContent =
+    `UTF-8 : 한글 ${nh} × 3 + 그 밖 ${other}${bom ? " + BOM 3" : ""} = ${nu}바이트\n` +
+    (nk === null ? "CP949 : 이 약속에 없는 글자가 있습니다" : `CP949 : 한글 ${nh} × 2 + 그 밖 ${other} = ${nk}바이트`) +
+    (nh && nh === chars.length && !bom ? `\n한글만 있으면 UTF-8이 CP949의 ${fmt(nu / nk, 1)}배` : "");
+  // 다른 약속으로 읽기
+  const w = $("e-w").value, r = $("e-r").value, out = $("e-out");
+  let bytes = w === "utf-8" ? (bom ? [0xef, 0xbb, 0xbf] : []).concat(...chars.map(u8)) : (bad ? null : [].concat(...kb));
+  out.classList.remove("err");
+  if (!bytes) { out.textContent = "CP949로 저장할 수 없는 글자가 있습니다."; out.classList.add("err"); return; }
+  const shown = bytes.map(hx).join(" ");
+  const sig = r === "utf-8-sig" && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf;
+  if (sig) bytes = bytes.slice(3);
+  const err = r.startsWith("utf-8") ? utf8Err(bytes) : cpErr(bytes);
+  if (err) { out.textContent = `바이트: ${shown}\n${err}`; out.classList.add("err"); return; }
+  let res = new TextDecoder(r.startsWith("utf-8") ? "utf-8" : "euc-kr", {ignoreBOM: true}).decode(Uint8Array.from(bytes));
+  res = res.replace(/﻿/g, "﻿[BOM]");
+  out.textContent = `바이트: ${shown}\n읽은 글자: ${res}` + (sig ? "  (맨 앞 BOM을 떼고 읽음)" : res.includes("[BOM]") ? "  (BOM이 첫 글자 앞에 붙음)" : w === r ? "  (같은 약속이라 그대로)" : "");
+}
+$("e-in").addEventListener("input", drawEnc);
+["e-bom", "e-w", "e-r"].forEach(id => $(id).addEventListener("change", drawEnc));
+document.querySelectorAll("[data-s]").forEach(b => b.addEventListener("click", () => {
+  $("e-in").value = b.dataset.s;
+  if (b.dataset.s === "지점") { $("e-w").value = "cp949"; $("e-r").value = "utf-8"; }
+  if (b.dataset.s === "기온") { $("e-w").value = "utf-8"; $("e-r").value = "cp949"; }
+  drawEnc();
+}));
+
+/* ───────── ② 크기와 시간 어림 ───────── */
+const FMT = [{n: "엑셀", mb: 34.2, s: 58}, {n: "CSV", mb: 70.2, s: 1.3}, {n: "파케이", mb: 3.3, s: 0.08}];
+let fsel = 0;
+const tstr = s => s < 120 ? `${fmt(s, s < 10 ? 1 : 0)}초` : s < 7200 ? `${fmt(s, 0)}초 ≈ ${fmt(s / 60, 1)}분` : `${fmt(s / 3600, 1)}시간`;
+function drawSize() {
+  const R = +$("s-r").value, C = +$("s-c").value, B = +$("s-b").value, F = +$("s-f").value;
+  $("s-ro").textContent = fmt(R); $("s-co").textContent = C; $("s-bo").textContent = B; $("s-fo").textContent = F;
+  const est = R * C * B / 1e6;
+  $("s-size").textContent = `${fmt(est, 1)}MB`;
+  $("s-vs").textContent = `CSV 70.2MB의 ${fmt(est / 70.2 * 100, 0)}%`;
+  const f = FMT[fsel], T = F * f.s;
+  $("s-t").textContent = tstr(T); $("s-t2").textContent = tstr(F * 0.08);
+  $("s-calc").textContent = `크기 ≈ ${fmt(R)} × ${C} × ${B} = ${fmt(R * C * B)}바이트 ≈ ${fmt(est, 1)}MB\n시간 ≈ ${F} × ${f.s}초(${f.n}) = ${tstr(T)}`;
+  const svg = $("sv"); clear(svg);
+  const L = 90, W = 500;
+  txt(svg, 20, 22, "한 달 치(495,775행 12열) 파일 크기 (MB)", {"font-size": 13, fill: "var(--ink)", "font-weight": 600});
+  const mx = Math.max(80, est * 1.1), X = v => L + v / mx * W;
+  FMT.forEach((g, i) => {
+    const y = 40 + i * 42;
+    txt(svg, L - 10, y + 20, g.n, {"text-anchor": "end", "font-size": 13, fill: "var(--ink)"});
+    el("rect", {x: L, y, width: Math.max(1, X(g.mb) - L), height: 28, rx: 4, fill: "var(--pt)", opacity: .8}, svg);
+    txt(svg, X(g.mb) + 6, y + 19, `${g.mb}MB`, {"font-size": 12, fill: "var(--ink)"});
+  });
+  el("line", {x1: X(est), x2: X(est), y1: 34, y2: 170, stroke: "var(--line)", "stroke-width": 2.5, "stroke-dasharray": "6 4"}, svg);
+  txt(svg, Math.min(X(est), 600), 186, `어림 ${fmt(est, 1)}MB`, {"text-anchor": "middle", "font-size": 12, fill: "var(--line)", "font-weight": 600});
+  txt(svg, 20, 226, `파일 ${F}개를 모두 읽는 시간`, {"font-size": 13, fill: "var(--ink)", "font-weight": 600});
+  const tm = Math.max(...FMT.map(g => F * g.s)), XT = v => L + v / tm * W;
+  FMT.forEach((g, i) => {
+    const y = 244 + i * 52, v = F * g.s;
+    txt(svg, L - 10, y + 22, g.n, {"text-anchor": "end", "font-size": 13, fill: "var(--ink)", "font-weight": i === fsel ? 800 : 400});
+    el("rect", {x: L, y, width: Math.max(2, XT(v) - L), height: 32, rx: 4, fill: i === fsel ? "var(--line)" : "var(--pt)", opacity: i === fsel ? .9 : .5}, svg);
+    if (XT(v) > 470) txt(svg, XT(v) - 8, y + 21, tstr(v), {"font-size": 12, fill: "#fff", "text-anchor": "end", "font-weight": 600});
+    else txt(svg, XT(v) + 6, y + 21, tstr(v), {"font-size": 12, fill: "var(--ink)"});
+  });
+}
+["s-r", "s-c", "s-b", "s-f"].forEach(id => $(id).addEventListener("input", drawSize));
+document.querySelectorAll("#s-fmt [data-f]").forEach(b => b.addEventListener("click", () => {
+  fsel = +b.dataset.f; document.querySelectorAll("#s-fmt [data-f]").forEach(x => x.classList.toggle("on", x === b)); drawSize();
+}));
+$("s-ex").addEventListener("click", () => { $("s-r").value = 495775; $("s-c").value = 12; $("s-b").value = 10; $("s-f").value = 40; $("s-fmt").children[0].click(); });
+$("s-day").addEventListener("click", () => { $("s-f").value = 365; drawSize(); });
+
+/* ───────── ③ 합치기와 검산, 24시 ───────── */
+const FILES = D.files, EXP = 40 * 365 * 24;
+let order = "month", off = new Set(), dup = [];
+FILES.forEach(f => $("m-dsel").insertAdjacentHTML("beforeend", `<option value="${f.m}">${f.name}</option>`));
+function readList() {
+  let fs = FILES.slice();
+  if (order === "name") fs.sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
+  fs = fs.filter(f => !off.has(f.m));
+  return fs.concat(dup.map(m => Object.assign({dup: true}, FILES.find(f => f.m === m))));
+}
+function drawMerge() {
+  $("m-name").classList.toggle("on", order === "name"); $("m-month").classList.toggle("on", order === "month");
+  const box = $("m-files"); box.innerHTML = "";
+  const all = order === "name" ? FILES.slice().sort((a, b) => a.name < b.name ? -1 : 1) : FILES;
+  all.concat(dup.map(m => Object.assign({dup: true}, FILES.find(f => f.m === m)))).forEach((f, i) => {
+    const b = document.createElement("button");
+    b.className = "file" + (off.has(f.m) && !f.dup ? " off" : "") + (f.dup ? " dup" : "");
+    b.innerHTML = `<b></b><span>${fmt(f.n)}줄</span>`; b.firstChild.textContent = (f.dup ? "또 " : "") + f.name;
+    if (!f.dup) b.addEventListener("click", () => { off.has(f.m) ? off.delete(f.m) : off.add(f.m); drawMerge(); });
+    box.appendChild(b);
+  });
+  const rl = readList(), N = rl.reduce((a, f) => a + f.n, 0);
+  $("m-k").textContent = rl.length; $("m-n").textContent = fmt(N); $("m-e").textContent = fmt(EXP);
+  const ok = N === EXP && !dup.length;
+  $("m-ok").innerHTML = ok ? '<span class="ok">맞음</span>' : '<span class="bad">어긋남</span>';
+  const miss = [...off].sort((a, b) => a - b);
+  const parts = [`Σ nₖ = ${rl.map(f => fmt(f.n)).slice(0, 3).join(" + ")}${rl.length > 3 ? " + …" : ""} = ${fmt(N)} = N (부분의 합은 늘 맞는다)`];
+  parts.push(`기대: 40곳 × 365일 × 24시 = ${fmt(EXP)} → 차이 ${N - EXP >= 0 ? "+" : "−"}${fmt(Math.abs(N - EXP))}`);
+  parts.push(`빠진 달: [${miss.join(", ")}]` + (dup.length ? ` · 겹친 달: [${dup.join(", ")}]` : ""));
+  if (order === "name") parts.push(`읽는 순서: ${rl.slice(0, 4).map(f => f.m + "월").join(", ")} … (10월이 1월보다 앞)`);
+  $("m-read").textContent = parts.join("\n"); $("m-read").style.whiteSpace = "pre-line";
+  // 달별 막대
+  const svg = $("mv"); clear(svg);
+  const L = 60, T = 14, W = 560, H = 196, mx = 64000, Y = v => T + H - v / mx * H, bw = W / 12;
+  [0, 20000, 40000, 60000].forEach(v => { el("line", {x1: L, x2: L + W, y1: Y(v), y2: Y(v), stroke: "var(--grid)"}, svg); txt(svg, L - 6, Y(v) + 4, fmt(v), {"text-anchor": "end"}); });
+  FILES.forEach((f, i) => {
+    const got = rl.filter(g => g.m === f.m).reduce((a, g) => a + g.n, 0), exp = 40 * f.days * 24, x = L + i * bw;
+    el("rect", {x: x + bw * .2, y: Y(got), width: bw * .6, height: Y(0) - Y(got), fill: got === exp ? "var(--pt)" : "var(--mean)", opacity: .8, rx: 2}, svg);
+    el("line", {x1: x + bw * .08, x2: x + bw * .92, y1: Y(exp), y2: Y(exp), stroke: "var(--line)", "stroke-width": 2.5}, svg);
+    txt(svg, x + bw / 2, T + H + 16, f.m + "월", {"text-anchor": "middle"});
+    if (got !== exp) txt(svg, x + bw / 2, Math.min(Y(got), Y(exp)) - 6, got ? "2배" : "0", {"text-anchor": "middle", fill: "var(--line)", "font-weight": 700});
+  });
+  el("rect", {x: L, y: T, width: W, height: H, fill: "none", stroke: "var(--grid2)"}, svg);
+}
+$("m-name").addEventListener("click", () => { order = "name"; drawMerge(); });
+$("m-month").addEventListener("click", () => { order = "month"; drawMerge(); });
+$("m-dup").addEventListener("click", () => { const m = +$("m-dsel").value; if (!dup.includes(m)) dup.push(m); drawMerge(); });
+$("m-reset").addEventListener("click", () => { order = "month"; off.clear(); dup = []; drawMerge(); });
+function drawHour() {
+  const s = $("h-a").value.trim(), out = $("h-calc");
+  if (!/^\d{10}$/.test(s)) { out.textContent = "열 자리 숫자(연월일 8자리 + 시 2자리)를 넣으세요."; return; }
+  const a = +s, q = Math.floor(a / 100), r = a % 100;
+  const y = Math.floor(q / 10000), m = Math.floor(q / 100) % 100, d = q % 100;
+  const day = new Date(Date.UTC(y, m - 1, d));
+  if (day.getUTCMonth() !== m - 1 || day.getUTCDate() !== d) { out.textContent = `몫 ${q}은 없는 날짜입니다.`; return; }
+  if (r > 24) { out.textContent = `나머지 ${r}: 시는 01~24여야 합니다.`; return; }
+  const t = new Date(day.getTime() + r * 3600e3);
+  const p = n => String(n).padStart(2, "0");
+  out.textContent =
+    `몫     q = a // 100 = ${q}  → ${y}년 ${m}월 ${d}일 0시\n` +
+    `나머지 r = a % 100  = ${r}  → ${r}시간 더하기\n` +
+    `실제 시각 = ${t.getUTCFullYear()}-${p(t.getUTCMonth() + 1)}-${p(t.getUTCDate())} ${p(t.getUTCHours())}:00` +
+    (r === 24 ? "  (24시 → 다음 날 0시)" : "") +
+    `\n검산: 100 × ${q} + ${r} = ${100 * q + r}`;
+}
+$("h-a").addEventListener("input", drawHour);
+document.querySelectorAll("[data-h]").forEach(b => b.addEventListener("click", () => { $("h-a").value = b.dataset.h; drawHour(); }));
+
+/* ───────── ④ 웹에서 모으기 ───────── */
+const ST = D.stations, MEAN = ST.map(s => { const v = s.pm.filter(x => x !== null); return v.reduce((a, b) => a + b, 0) / v.length; });
+let W, timer = null;
+function wReset() {
+  if (timer) { clearInterval(timer); timer = null; }
+  W = {q: [{t: "list", k: 1}], seen: new Set(), got: [], n: 0, status: null, time: 0, log: [], cur: null, blocked: false};
+  drawWeb();
+}
+function wStep() {
+  if (W.blocked || !W.q.length) return false;
+  const it = W.q[0], ua = $("w-ua").value, d = +$("w-d").value;
+  W.time += d; W.n++;
+  const path = it.t === "list" ? `/list/${it.k}.html` : `/station/${ST[it.i].code}.html`;
+  const rest = d === 0 ? "[쉬지 않음!] " : `[${d}초 쉼] `;
+  W.cur = it;
+  if (ua === "def") {
+    W.status = 403; W.blocked = true;
+    W.log.push(`${rest}GET ${path} → 403 거절\n  User-Agent에 이름과 목적을 적어 달라는 답. 멈춘다(raise_for_status).`);
+    return false;
+  }
+  W.q.shift(); W.status = 200; W.seen.add(it.t + (it.k || it.i));
+  if (it.t === "list") {
+    const add = ST.map((s, i) => i).filter(i => ST[i].page === it.k);
+    add.forEach(i => W.q.push({t: "st", i}));
+    if (it.k < 3) W.q.unshift({t: "list", k: it.k + 1});
+    W.log.push(`${rest}GET ${path} → 200 | 측정소 ${add.length}곳을 대기열 뒤에, ` + (it.k < 3 ? `다음: ${it.k + 1}.html` : `"다음" 없음`));
+  } else {
+    const s = ST[it.i], nan = s.pm.filter(x => x === null).length;
+    W.got.push(it.i);
+    W.log.push(`${rest}GET ${path} → 200 | ${s.gu} 12달` + (nan ? `, "-" ${nan}칸 → NaN` : ""));
+  }
+  if (!W.q.length) {
+    const nan = W.got.reduce((a, i) => a + ST[i].pm.filter(x => x === null).length, 0);
+    const srt = W.got.slice().sort((a, b) => MEAN[a] - MEAN[b]);
+    W.log.push(`끝: 요청 ${W.n}번, 쉬는 시간 합 ${fmt(W.time, 1)}초\n  표 ${W.got.length * 12}칸(빈칸 ${nan}) | 가장 낮은 구: ${ST[srt[0]].gu} ${MEAN[srt[0]].toFixed(1)} | 가장 높은 구: ${ST[srt.at(-1)].gu} ${MEAN[srt.at(-1)].toFixed(1)}`);
+    W.cur = null;
+  }
+  return W.q.length > 0;
+}
+function drawWeb() {
+  $("w-n").textContent = W.n; $("w-s").innerHTML = W.status === null ? "–" : W.status === 200 ? '<span class="ok">200</span>' : '<span class="bad">403</span>';
+  $("w-c").textContent = `${W.got.length} / 25`; $("w-t").textContent = `${fmt(W.time, 1)}초`;
+  $("w-do").textContent = `${$("w-d").value}초`;
+  $("w-q").innerHTML = W.q.length ? W.q.slice(0, 30).map(it => `<span>${it.t === "list" ? "list/" + it.k : ST[it.i].code}</span>`).join("") : '<span style="background:none;color:var(--muted)">비어 있음</span>';
+  const lg = $("w-log"); lg.textContent = W.log.join("\n"); lg.scrollTop = lg.scrollHeight;
+  // 사이트 그림
+  const svg = $("wv"); clear(svg);
+  const isCur = (t, x) => W.cur && W.cur.t === t && (W.cur.k === x || W.cur.i === x);
+  const rb = el("g", {}, svg);
+  el("rect", {x: 250, y: 8, width: 140, height: 30, rx: 6, fill: "var(--chip)", stroke: "var(--border)"}, rb);
+  txt(rb, 320, 28, "robots.txt", {"text-anchor": "middle", "font-size": 13, fill: "var(--ink)", "font-weight": 600});
+  el("rect", {x: 430, y: 8, width: 120, height: 30, rx: 6, fill: "none", stroke: "var(--line)", "stroke-dasharray": "4 3"}, svg);
+  txt(svg, 490, 28, "/admin/ ✕", {"text-anchor": "middle", "font-size": 13, fill: "var(--line)", "font-weight": 600});
+  for (let k = 1; k <= 3; k++) {
+    const y = 60 + (k - 1) * 78, on = W.seen.has("list" + k), cur = isCur("list", k);
+    el("rect", {x: 20, y, width: 120, height: 54, rx: 7, fill: on ? "var(--pt)" : "var(--paper)", opacity: on ? .85 : 1, stroke: cur ? "var(--line)" : "var(--border)", "stroke-width": cur ? 3 : 1}, svg);
+    txt(svg, 80, y + 24, `목록 ${k}쪽`, {"text-anchor": "middle", "font-size": 13, fill: on ? "#fff" : "var(--ink)", "font-weight": 600});
+    txt(svg, 80, y + 42, `측정소 ${ST.filter(s => s.page === k).length}곳`, {"text-anchor": "middle", "font-size": 11, fill: on ? "#fff" : "var(--muted)"});
+    if (k < 3) { el("line", {x1: 80, x2: 80, y1: y + 54, y2: y + 76, stroke: "var(--muted)", "stroke-width": 1.5}, svg); txt(svg, 88, y + 69, "다음", {"font-size": 10}); }
+  }
+  ST.forEach((s, i) => {
+    const c = i % 5, r = Math.floor(i / 5), x = 190 + c * 88, y = 54 + r * 48;
+    const on = W.got.includes(i), cur = isCur("st", i), inq = W.q.some(q => q.t === "st" && q.i === i);
+    el("rect", {x, y, width: 80, height: 40, rx: 6, fill: on ? "var(--pt)" : inq ? "var(--chip)" : "var(--paper)", opacity: on ? .85 : 1,
+      stroke: cur ? "var(--line)" : "var(--border)", "stroke-width": cur ? 3 : 1, "stroke-dasharray": inq ? "4 3" : "none"}, svg);
+    txt(svg, x + 40, y + 18, s.gu, {"text-anchor": "middle", "font-size": 12, fill: on ? "#fff" : "var(--ink)", "font-weight": 600});
+    txt(svg, x + 40, y + 33, s.code, {"text-anchor": "middle", "font-size": 10, fill: on ? "#fff" : "var(--muted)"});
+  });
+  txt(svg, 630, 296, "점선 = 대기열에 있음", {"text-anchor": "end", "font-size": 10});
+  // 구별 막대
+  const bs = $("wb"); clear(bs);
+  const L = 80, T = 6, Wd = 500, h = 12.4, mx = 25, X = v => L + v / mx * Wd;
+  [0, 5, 10, 15, 20, 25].forEach(v => { el("line", {x1: X(v), x2: X(v), y1: T, y2: T + 25 * h, stroke: "var(--grid)"}, bs); txt(bs, X(v), T + 25 * h + 14, v, {"text-anchor": "middle"}); });
+  const srt = W.got.slice().sort((a, b) => MEAN[a] - MEAN[b]);
+  srt.forEach((i, k) => {
+    const y = T + k * h, ex = k === 0 || k === srt.length - 1;
+    txt(bs, L - 6, y + h - 3, ST[i].gu, {"text-anchor": "end", "font-size": 10, fill: "var(--ink)"});
+    el("rect", {x: L, y: y + 1.5, width: X(MEAN[i]) - L, height: h - 3, fill: ex && srt.length === 25 ? "var(--line)" : "var(--pt)", opacity: .8}, bs);
+    txt(bs, X(MEAN[i]) + 4, y + h - 3, MEAN[i].toFixed(1), {"font-size": 10});
+  });
+  if (!srt.length) txt(bs, 320, 160, "아직 모은 측정소가 없습니다", {"text-anchor": "middle", "font-size": 13});
+  txt(bs, L + Wd / 2, T + 25 * h + 30, "2025년 PM2.5 (달 평균 12개의 평균, ㎍/㎥)", {"text-anchor": "middle", "font-size": 11, fill: "var(--ink)"});
+}
+$("w-step").addEventListener("click", () => { wStep(); drawWeb(); });
+$("w-run").addEventListener("click", () => {
+  if (timer) return;
+  timer = setInterval(() => { const more = wStep(); drawWeb(); if (!more) { clearInterval(timer); timer = null; } }, 110);
+});
+$("w-reset").addEventListener("click", wReset);
+$("w-ua").addEventListener("change", wReset);
+$("w-d").addEventListener("input", () => { $("w-do").textContent = `${$("w-d").value}초`; });
+document.querySelectorAll("[data-r]").forEach(b => b.addEventListener("click", () => {
+  const p = b.dataset.r, ok = !p.startsWith("/admin/");
+  $("w-rb").innerHTML = `rp.can_fetch(UA, BASE + "${p}") → <b class="${ok ? "ok" : "bad"}">${ok ? "True" : "False"}</b>` +
+    (ok ? "" : "<br>Disallow: /admin/ 에 걸립니다. 가져가지 않습니다.") + `<br>rp.crawl_delay("*") → 1 (요청 사이에 1초)`;
+}));
+
+function drawAll() { drawEnc(); drawSize(); drawMerge(); drawHour(); drawWeb(); }
+wReset(); drawAll();
+})();
+</script>
+</body></html>

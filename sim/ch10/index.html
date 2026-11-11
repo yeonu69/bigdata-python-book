@@ -1,0 +1,645 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>
+<title>트리·앙상블 시뮬레이터</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@400;600;800&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* 레이아웃: 모눈종이 위 그래프(왼쪽)와 계산 노트(오른쪽). 좁으면 위아래로 쌓인다. */
+:root{
+  --bg:#f5f6f3; --paper:#ffffff; --grid:#e3e7e1; --grid2:#cfd6cd; --ink:#1f2a24; --muted:#5d6b63;
+  --line:#c8234b; --line-soft:rgba(200,35,75,.14); --pt:#24527a; --pt-soft:rgba(36,82,122,.18);
+  --mean:#8a6d1d; --mine:#2f8f5b; --band:rgba(36,82,122,.10); --sq:rgba(200,35,75,.13);
+  --chip:#eef1ec; --border:#d5dbd3;
+  --f-head:"Gothic A1","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --f-body:"Gothic A1","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141917; --paper:#1b211e; --grid:#27302b; --grid2:#33403a; --ink:#e6ece7; --muted:#9aa9a0;
+  --line:#ff5c7f; --line-soft:rgba(255,92,127,.18); --pt:#7fb6e6; --pt-soft:rgba(127,182,230,.2);
+  --mean:#d8b45a; --mine:#5fd394; --band:rgba(127,182,230,.12); --sq:rgba(255,92,127,.16);
+  --chip:#232b27; --border:#34403a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141917; --paper:#1b211e; --grid:#27302b; --grid2:#33403a; --ink:#e6ece7; --muted:#9aa9a0;
+  --line:#ff5c7f; --line-soft:rgba(255,92,127,.18); --pt:#7fb6e6; --pt-soft:rgba(127,182,230,.2);
+  --mean:#d8b45a; --mine:#5fd394; --band:rgba(127,182,230,.12); --sq:rgba(255,92,127,.16);
+  --chip:#232b27; --border:#34403a; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+header h1{font-family:var(--f-head);font-weight:800;font-size:1.65rem;margin:0;letter-spacing:-.01em;text-wrap:balance}
+header p{margin:4px 0 0;color:var(--muted);max-width:70ch}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;border-bottom:1px solid var(--border);padding-bottom:8px}
+.tab{font:600 .95rem var(--f-body);border:1px solid var(--border);background:var(--paper);color:var(--ink);
+  padding:7px 14px;border-radius:8px;cursor:pointer}
+.tab[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tab:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--line);outline-offset:2px}
+.panel{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:860px){.panel{grid-template-columns:minmax(0,1fr)}}
+.stage{background:var(--paper);border:1px solid var(--border);border-radius:10px;padding:10px;min-width:0}
+.stage svg,.stage canvas{display:block;width:100%;height:auto;touch-action:none;user-select:none}
+.hint{font-size:.85rem;color:var(--muted);margin:6px 4px 0}
+.side{display:flex;flex-direction:column;gap:14px;min-width:0}
+.card{background:var(--paper);border:1px solid var(--border);border-radius:10px;padding:14px 16px;min-width:0}
+.card h2{font:800 1rem var(--f-head);margin:0 0 8px}
+.eq{font-family:var(--f-num);font-size:1.25rem;font-weight:600;color:var(--line);overflow-x:auto;white-space:nowrap}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px;margin-top:10px}
+.stat{display:flex;flex-direction:column;border-top:1px solid var(--grid2);padding-top:6px}
+.stat b{font:600 .78rem var(--f-body);color:var(--muted);letter-spacing:.02em}
+.stat span{font:600 1.1rem var(--f-num);font-variant-numeric:tabular-nums}
+.read{font-size:.92rem;margin:10px 0 0}
+.row{display:flex;flex-wrap:wrap;gap:6px}
+button.b{font:600 .85rem var(--f-body);border:1px solid var(--border);background:var(--chip);color:var(--ink);
+  padding:6px 11px;border-radius:7px;cursor:pointer}
+button.b:hover{border-color:var(--ink)}
+button.b.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+label.sl{display:grid;grid-template-columns:7.5em minmax(0,1fr) 4.2em;gap:8px;align-items:center;font-size:.88rem;margin:4px 0}
+label.sl output{font-family:var(--f-num);text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--line)}
+.chk{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.88rem;margin-top:8px}
+.chk label{display:flex;gap:5px;align-items:center;cursor:pointer}
+details{font-size:.9rem}
+details summary{cursor:pointer;font-weight:600}
+.calc{font-family:var(--f-num);font-size:.82rem;background:var(--chip);border-radius:7px;padding:10px;margin-top:8px;overflow-x:auto;white-space:pre;line-height:1.55}
+.box{background:var(--chip);border-radius:8px;padding:10px 12px;font-size:.88rem}
+.box strong{display:block;margin-bottom:2px}
+table.t{border-collapse:collapse;width:100%;font-size:.88rem}
+table.t th,table.t td{border-bottom:1px solid var(--grid2);padding:5px 6px;text-align:right;font-variant-numeric:tabular-nums}
+table.t th:first-child,table.t td:first-child{text-align:left}
+table.t td{font-family:var(--f-num)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.8rem;color:var(--muted);margin:6px 4px 0}
+.legend i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:4px}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (max-width:520px){.two{grid-template-columns:minmax(0,1fr)}}
+svg text{font-family:var(--f-body)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<style>
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.sub{font-size:.8rem;color:var(--muted);margin:8px 0 0}
+.bar{display:grid;grid-template-columns:8.5em minmax(0,1fr) 4.6em;gap:8px;align-items:center;font-size:.85rem;margin:4px 0}
+.bar .tr{background:var(--chip);border-radius:4px;height:12px;position:relative;overflow:hidden}
+.bar .tr i{position:absolute;left:0;top:0;bottom:0;background:var(--line);border-radius:4px}
+.bar .tr i.g{background:var(--muted)}
+.bar span{font-family:var(--f-num);text-align:right;font-variant-numeric:tabular-nums}
+</style>
+
+<div class="wrap">
+<header>
+  <h1>트리·앙상블 시뮬레이터</h1>
+  <p>『빅데이터분석 with 파이썬』 10장 「스무고개와 집단지성: 결정나무와 앙상블」의 개념을 손으로 움직여 봅니다. 문턱을 끌면 지니 불순도가, 깊이를 바꾸면 나무의 칸이, 나무를 더하면 부스팅의 예측이 바로 바뀝니다. 책의 실제 은행 기록(45,211건)으로 계산한 값이 들어 있습니다.</p>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab" role="tab" aria-selected="true" data-p="p-gini">① 지니 불순도와 첫 질문</button>
+  <button class="tab" role="tab" aria-selected="false" data-p="p-depth">② 깊이와 과적합</button>
+  <button class="tab" role="tab" aria-selected="false" data-p="p-crowd">③ 다수결과 숲</button>
+  <button class="tab" role="tab" aria-selected="false" data-p="p-boost">④ 부스팅: 잔차를 따라</button>
+</nav>
+
+<!-- ① 지니 불순도 -->
+<section class="panel" id="p-gini">
+  <div class="stage">
+    <svg id="gv" viewBox="0 0 640 470" aria-label="문턱으로 나눈 두 무리와 지니 불순도"></svg>
+    <p class="hint" id="g-hint">그래프를 누른 채 좌우로 끌면 문턱이 움직입니다. 위는 나이별 고객 수(<b style="color:var(--line)">가입</b>·<b style="color:var(--pt)">안 함</b>), 아래는 그 문턱으로 나눌 때 줄어드는 지니 불순도(ΔG)입니다.</p>
+  </div>
+  <div class="side">
+    <div class="card">
+      <h2>ΔG = G부모 − (n왼/n · G왼 + n오/n · G오)</h2>
+      <div class="eq" id="g-q">–</div>
+      <div class="stats">
+        <div class="stat"><b>G 부모 (나누기 전)</b><span id="g-root">–</span></div>
+        <div class="stat"><b>질문의 값 ΔG</b><span id="g-dg">–</span></div>
+        <div class="stat"><b>왼쪽: 사람 수 · 가입률</b><span id="g-l">–</span></div>
+        <div class="stat"><b>오른쪽: 사람 수 · 가입률</b><span id="g-r">–</span></div>
+        <div class="stat"><b>G 왼 / G 오</b><span id="g-glr">–</span></div>
+        <div class="stat"><b>가중 평균 G</b><span id="g-after">–</span></div>
+      </div>
+      <p class="read" id="g-read"></p>
+      <div class="row" style="margin-top:8px">
+        <button class="b on" id="g-book">책 데이터 (나이)</button>
+        <button class="b" id="g-exA">예제 10-1 질문 A</button>
+        <button class="b" id="g-exB">예제 10-1 질문 B</button>
+        <button class="b" id="g-best">가장 좋은 문턱 찾기</button>
+      </div>
+      <p class="sub" id="g-sub"></p>
+    </div>
+    <div class="card">
+      <h2>책: 첫 질문 후보 세 개 (실습 10-2)</h2>
+      <div id="g-cand"></div>
+      <p class="sub">은행 기록 45,211건 전체. 막대는 지니 감소(ΔG)입니다. 결정나무는 가장 긴 막대의 질문을 뿌리에 둡니다.</p>
+    </div>
+    <div class="box"><strong>해 볼 것</strong>① 문턱을 60세로 옮겨 ΔG가 책의 "60세 초과?"(0.0050)와 같은지 확인합니다. ② "가장 좋은 문턱 찾기"를 누르고, 그래도 "지난 캠페인 성공?"(0.0194)보다 작다는 것을 봅니다. ③ 예제 10-1에서 질문 A는 0.163, B는 0입니다. 고객 점을 눌러 가입·안 함을 바꾸면 값이 어떻게 변할까요?</div>
+  </div>
+</section>
+
+<!-- ② 깊이와 과적합 -->
+<section class="panel" id="p-depth" hidden>
+  <div class="stage">
+    <svg id="dv" viewBox="0 0 640 470" aria-label="결정나무가 나눈 칸"></svg>
+    <p class="hint">결정나무가 평면을 가로·세로 문턱으로 잘게 나눈 칸입니다. 칸의 색이 진할수록 그 잎의 <b style="color:var(--line)">빨강</b> 비율이 높습니다. 채운 점은 훈련, 빈 점은 시험 데이터입니다. 점을 누르면 훈련 점이 더해집니다.</p>
+  </div>
+  <div class="side">
+    <div class="card">
+      <h2>나무의 손잡이</h2>
+      <label class="sl">최대 깊이 <input type="range" id="d-d" min="1" max="12" step="1" value="3"><output id="d-do"></output></label>
+      <label class="sl">잎의 최소 인원 <input type="range" id="d-m" min="1" max="30" step="1" value="1"><output id="d-mo"></output></label>
+      <div class="row" style="margin-top:6px">
+        <button class="b" id="d-p1">대각선 경계</button>
+        <button class="b" id="d-p2">원 모양</button>
+        <button class="b" id="d-p3">잡음 많음</button>
+        <button class="b" id="d-pc">빨강 점 찍기</button>
+      </div>
+      <div class="stats">
+        <div class="stat"><b>잎의 수</b><span id="d-leaf">–</span></div>
+        <div class="stat"><b>정확도 훈련 / 시험</b><span id="d-acc">–</span></div>
+      </div>
+      <svg id="dc" viewBox="0 0 420 170" aria-label="깊이별 훈련·시험 정확도" style="margin-top:8px;width:100%"></svg>
+      <p class="read" id="d-read"></p>
+    </div>
+    <div class="card">
+      <h2>책: 깊이별 AUC (은행 기록, 실습 10-4)</h2>
+      <svg id="db" viewBox="0 0 420 190" aria-label="책 데이터의 깊이별 AUC" style="width:100%"></svg>
+      <label class="sl">깊이 <input type="range" id="d-bk" min="1" max="25" step="1" value="8"><output id="d-bko"></output></label>
+      <p class="sub" id="d-bread"></p>
+    </div>
+    <div class="box"><strong>해 볼 것</strong>① "잡음 많음"에서 깊이를 1부터 12까지 올리며 훈련과 시험 정확도가 언제 벌어지는지 봅니다. ② 깊이 12에서 잎의 최소 인원을 20으로 올리면(가지치기) 칸이 굵어지고 시험 정확도가 어떻게 되나요? ③ 오른쪽 책 그래프에서 깊이 3, 8, 20의 값(시험 0.557, 0.623, 0.561)을 찾아봅니다.</div>
+  </div>
+</section>
+
+<!-- ③ 다수결과 숲 -->
+<section class="panel" id="p-crowd" hidden>
+  <div class="stage">
+    <svg id="cv" viewBox="0 0 640 470" aria-label="다수결이 옳을 확률"></svg>
+    <p class="hint">한 사람이 옳을 확률 p, 판단이 서로 닮은 정도 ρ를 바꾸면 사람 수에 따른 다수결의 정확도(위)와 평균의 흔들림(아래, 식 10-4)이 바뀝니다. 점선은 ρ = 0일 때입니다.</p>
+  </div>
+  <div class="side">
+    <div class="card">
+      <h2>P다수결 · Var = ρσ² + (1−ρ)σ²/B</h2>
+      <label class="sl">한 사람 p <input type="range" id="c-p" min="0.45" max="0.8" step="0.01" value="0.6"><output id="c-po"></output></label>
+      <label class="sl">닮은 정도 ρ <input type="range" id="c-r" min="0" max="1" step="0.05" value="0"><output id="c-ro"></output></label>
+      <label class="sl">사람 수 n <input type="range" id="c-n" min="1" max="101" step="2" value="3"><output id="c-no"></output></label>
+      <div class="stats">
+        <div class="stat"><b>다수결이 옳을 확률</b><span id="c-pm">–</span></div>
+        <div class="stat"><b>평균의 흔들림 (σ² = 1)</b><span id="c-var">–</span></div>
+      </div>
+      <p class="read" id="c-read"></p>
+    </div>
+    <div class="card">
+      <h2>책: 세 가지 숲 (실습 10-6)</h2>
+      <div id="c-forest"></div>
+      <svg id="ck" viewBox="0 0 420 170" aria-label="랜덤 포레스트 나무 수별 AUC" style="width:100%;margin-top:6px"></svg>
+      <label class="sl">나무 수 k <input type="range" id="c-k" min="0" max="100" step="1" value="0"><output id="c-ko"></output></label>
+      <p class="sub" id="c-kread"></p>
+    </div>
+    <div class="box"><strong>해 볼 것</strong>① p = 0.6, n = 3에서 0.648(예제 10-2), n = 101에서 0.979가 나오는지 봅니다. ② ρ를 0.3, 1로 올리면 사람을 늘려도 정확도가 어디서 멈추나요? ③ 책의 숲에서 나무 수를 1, 10, 30, 300으로 옮기며 0.615 → 0.708이 30그루 뒤로 거의 멈추는 것을 봅니다.</div>
+  </div>
+</section>
+
+<!-- ④ 부스팅 -->
+<section class="panel" id="p-boost" hidden>
+  <div class="stage">
+    <svg id="bv" viewBox="0 0 640 470" aria-label="부스팅 예측과 잔차"></svg>
+    <p class="hint">점은 실제 값, <b style="color:var(--line)">빨간 선</b>은 지금까지 더한 예측 F<sub>m</sub>, 회색 막대는 잔차(실제 − 예측)입니다. "한 그루 더하기"를 누르면 잔차를 맞힌 작은 나무 h<sub>m</sub>을 학습률 ν만큼 더합니다(식 10-5).</p>
+  </div>
+  <div class="side">
+    <div class="card">
+      <h2>F<sub>m</sub> = F<sub>m−1</sub> + ν · h<sub>m</sub></h2>
+      <label class="sl">학습률 ν <input type="range" id="b-nu" min="0.05" max="1" step="0.05" value="0.5"><output id="b-nuo"></output></label>
+      <div class="row" style="margin-top:6px">
+        <button class="b" id="b-1">한 그루 더하기</button>
+        <button class="b" id="b-10">10그루 더하기</button>
+        <button class="b" id="b-0">처음부터</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button class="b on" id="b-ex">예제 10-3 (고객 넷)</button>
+        <button class="b" id="b-wave">물결 데이터 (그루터기 나무)</button>
+      </div>
+      <div class="stats">
+        <div class="stat"><b>더한 나무 m</b><span id="b-m">–</span></div>
+        <div class="stat"><b id="b-k1">첫 고객의 예측</b><span id="b-v1">–</span></div>
+        <div class="stat"><b>잔차 제곱합 (훈련)</b><span id="b-sse">–</span></div>
+        <div class="stat"><b id="b-k2">시험 잔차 제곱합</b><span id="b-v2">–</span></div>
+      </div>
+      <p class="read" id="b-read"></p>
+    </div>
+    <div class="card">
+      <h2>책: 나무 수에 따른 시험 AUC (실습 10-7)</h2>
+      <svg id="bb" viewBox="0 0 420 190" aria-label="부스팅 나무 수별 시험 AUC" style="width:100%"></svg>
+      <label class="sl">나무 수 <input type="range" id="b-k" min="1" max="300" step="1" value="100"><output id="b-ko"></output></label>
+      <p class="sub" id="b-bread"></p>
+    </div>
+    <div class="box"><strong>해 볼 것</strong>① 예제 10-3에서 ν = 0.5로 두 그루를 더해 첫 고객이 0.25 → 0.625 → 0.8125가 되는지 봅니다. ② ν를 1로 올리면 한 번에 맞히고, 0.1로 내리면 천천히 다가갑니다. ③ 물결 데이터에서 ν = 1로 50그루를 더하면 훈련 잔차는 줄지만 시험 잔차는 어떻게 되나요? ④ 책 그래프에서 학습률 0.05는 100그루 언저리, 1.0은 일찍 꺾입니다.</div>
+  </div>
+</section>
+<p class="hint" style="text-align:center">10장 05절 파이썬 실습의 숫자(실습 10-2, 10-4, 10-6, 10-7)는 책과 같은 시간 분할(앞 75% 훈련, 뒤 25% 시험)로 계산했습니다.</p>
+</div>
+
+<script>
+(() => {
+"use strict";
+const D = {"ages":[[18,7,5],[19,11,24],[20,15,35],[21,22,57],[22,40,89],[23,44,158],[24,68,234],[25,113,414],[26,134,671],[27,141,768],[28,162,876],[29,171,1014],[30,217,1540],[31,206,1790],[32,221,1864],[33,210,1762],[34,198,1732],[35,209,1685],[36,195,1611],[37,170,1526],[38,144,1322],[39,143,1344],[40,116,1239],[41,120,1171],[42,111,1131],[43,103,1058],[44,93,1043],[45,106,1110],[46,118,1057],[47,113,975],[48,82,915],[49,101,893],[50,72,867],[51,77,859],[52,85,826],[53,85,806],[54,84,727],[55,76,730],[56,68,710],[57,78,750],[58,72,668],[59,88,682],[60,98,498],[61,57,90],[62,39,41],[63,30,47],[64,35,39],[65,21,38],[66,24,39],[67,23,31],[68,21,15],[69,17,27],[70,17,50],[71,25,29],[72,24,28],[73,24,20],[74,13,24],[75,15,24],[76,16,16],[77,22,22],[78,14,16],[79,10,15],[80,12,19],[81,6,11],[82,8,11],[83,6,16],[84,5,4],[85,4,1],[86,4,5],[87,3,1],[88,0,2],[89,0,3],[90,2,0],[92,2,0],[93,2,0],[94,0,1],[95,1,1]],"cand":{"지난 캠페인 성공?":[1511,0.647,43700,0.099,0.0194],"60세 초과?":[1188,0.423,44023,0.109,0.005],"주택대출 있음?":[25130,0.077,20081,0.167,0.004]},"root":0.2066,"n":45211,"depth":[[1,0.527,0.514,2],[2,0.538,0.532,4],[3,0.553,0.557,7],[4,0.591,0.577,13],[5,0.619,0.593,22],[6,0.652,0.59,40],[7,0.674,0.612,66],[8,0.693,0.623,103],[9,0.706,0.604,147],[10,0.721,0.595,188],[11,0.74,0.589,248],[12,0.754,0.582,323],[13,0.771,0.572,412],[14,0.791,0.571,528],[15,0.816,0.556,667],[16,0.839,0.554,828],[17,0.863,0.564,1020],[18,0.887,0.565,1225],[19,0.912,0.564,1453],[20,0.932,0.561,1668],[21,0.95,0.56,1885],[22,0.964,0.552,2100],[23,0.974,0.552,2298],[24,0.982,0.544,2503],[25,0.988,0.547,2657]],"forests":{"똑같은 나무":[0.584,0.587,1],"배깅":[0.586,0.671,3],"랜덤 포레스트":[0.588,0.708,27]},"rfk":[0.6153,0.6245,0.6504,0.6619,0.6337,0.6472,0.645,0.6554,0.6627,0.6662,0.6676,0.6711,0.6768,0.6842,0.6854,0.6876,0.6901,0.6881,0.6883,0.6875,0.6862,0.6873,0.6888,0.6914,0.6924,0.6941,0.6983,0.6975,0.6971,0.6965,0.6962,0.6971,0.697,0.6971,0.6985,0.6974,0.6974,0.7,0.701,0.7012,0.7011,0.7012,0.7009,0.7022,0.7022,0.702,0.7034,0.7032,0.703,0.7031,0.702,0.7016,0.7015,0.7019,0.7021,0.7017,0.7014,0.7012,0.7018,0.7025,0.7026,0.7023,0.7014,0.7015,0.7012,0.7022,0.703,0.7038,0.7042,0.7042,0.7042,0.7041,0.7034,0.7035,0.7029,0.7026,0.7037,0.7038,0.7012,0.7013,0.7018,0.702,0.7023,0.7025,0.702,0.7029,0.7031,0.703,0.7026,0.7018,0.7016,0.7016,0.7028,0.7031,0.7025,0.703,0.7032,0.7037,0.7036,0.7034,0.7038,0.7034,0.703,0.7028,0.7031,0.7042,0.7042,0.7038,0.7039,0.704,0.7042,0.7047,0.7044,0.7047,0.7047,0.7054,0.7054,0.7057,0.7055,0.7058,0.7061,0.7058,0.7058,0.7056,0.7056,0.7055,0.7052,0.7049,0.7048,0.7048,0.7052,0.7049,0.7051,0.705,0.7049,0.7045,0.7045,0.7056,0.7054,0.7053,0.7052,0.7051,0.7046,0.7038,0.7035,0.7037,0.7036,0.7032,0.703,0.7037,0.7038,0.7039,0.7038,0.704,0.7039,0.7043,0.7044,0.7044,0.7041,0.7044,0.7046,0.7043,0.7048,0.7049,0.7054,0.7053,0.7058,0.7056,0.7054,0.7054,0.7056,0.7058,0.7061,0.7058,0.7056,0.7062,0.706,0.7061,0.7063,0.706,0.7057,0.7059,0.7057,0.7058,0.7055,0.7055,0.7059,0.7061,0.7061,0.7061,0.7061,0.7062,0.7062,0.7062,0.7064,0.7063,0.7063,0.7067,0.7065,0.7065,0.7066,0.7065,0.7064,0.7062,0.7066,0.7066,0.7069,0.7069,0.7073,0.7072,0.7072,0.7072,0.7075,0.7076,0.7074,0.7073,0.7072,0.7071,0.7072,0.7072,0.7071,0.7071,0.7071,0.707,0.7071,0.7071,0.7072,0.7074,0.7083,0.7083,0.7085,0.7086,0.7085,0.7083,0.7079,0.7081,0.7083,0.7081,0.7078,0.7076,0.7076,0.7075,0.7073,0.7072,0.7073,0.7072,0.7074,0.7074,0.7072,0.7072,0.7071,0.7071,0.7074,0.7074,0.7074,0.7073,0.7075,0.7075,0.7077,0.7075,0.7074,0.7074,0.7076,0.7077,0.7077,0.7079,0.708,0.7079,0.7079,0.7082,0.708,0.7078,0.7077,0.7078,0.7077,0.7077,0.7078,0.7078,0.7078,0.7081,0.708,0.708,0.708,0.7081,0.7079,0.7077,0.7076,0.7073,0.7078,0.7078,0.7076,0.7076,0.7076,0.7076,0.7078,0.7076,0.7078,0.7081,0.7083,0.7083],"stage":{"0.05":{"test":[0.5549,0.5554,0.5566,0.5566,0.5558,0.5793,0.5821,0.5823,0.598,0.5986,0.5986,0.6137,0.6133,0.6135,0.6132,0.6137,0.6136,0.6233,0.6233,0.6235,0.6488,0.654,0.6541,0.6541,0.652,0.652,0.6708,0.6709,0.6704,0.6779,0.7047,0.7052,0.7053,0.7013,0.6988,0.7005,0.7,0.7022,0.7078,0.7106,0.7117,0.7085,0.706,0.7072,0.7129,0.7122,0.7132,0.7119,0.7118,0.7106,0.7097,0.7098,0.712,0.7152,0.7158,0.7176,0.7166,0.7187,0.7215,0.7201,0.72,0.7207,0.72,0.7216,0.7215,0.7213,0.7234,0.7235,0.7227,0.7224,0.7249,0.7252,0.726,0.7261,0.7262,0.7259,0.7254,0.7248,0.7272,0.7275,0.7275,0.7271,0.7272,0.7268,0.7268,0.7282,0.7275,0.7267,0.7267,0.7273,0.7274,0.7271,0.7267,0.7265,0.7277,0.7282,0.7281,0.7278,0.7277,0.7279,0.728,0.7278,0.7277,0.7284,0.7295,0.7293,0.7292,0.7301,0.7303,0.7303,0.73,0.73,0.7288,0.7286,0.7285,0.728,0.7279,0.7277,0.7277,0.7276,0.7269,0.7265,0.7263,0.7256,0.7258,0.7258,0.7253,0.7254,0.7254,0.7255,0.7253,0.7257,0.7257,0.7157,0.7156,0.7155,0.7154,0.7155,0.7155,0.7152,0.7152,0.7152,0.7151,0.715,0.7151,0.7151,0.7151,0.7149,0.7146,0.701,0.7007,0.7006,0.7004,0.7007,0.7008,0.7007,0.7008,0.7004,0.7002,0.7005,0.7006,0.7007,0.7009,0.7007,0.6924,0.6926,0.6911,0.6912,0.6913,0.6907,0.6907,0.6909,0.6924,0.6923,0.6922,0.6923,0.6922,0.6922,0.692,0.6926,0.6929,0.6932,0.6931,0.6932,0.6933,0.6932,0.6932,0.6932,0.6938,0.6937,0.6937,0.6936,0.6935,0.6927,0.6928,0.6932,0.6931,0.6931,0.6943,0.6944,0.6945,0.6943,0.6942,0.6916,0.6915,0.6919,0.6918,0.6916,0.6916,0.6917,0.6917,0.6917,0.6918,0.6919,0.6924,0.6923,0.6922,0.6881,0.6885,0.6883,0.6883,0.6879,0.6879,0.6879,0.688,0.6879,0.6877,0.6879,0.6879,0.6879,0.688,0.688,0.6888,0.6884,0.6897,0.6897,0.6896,0.6889,0.689,0.689,0.6893,0.6892,0.6892,0.6898,0.69,0.6902,0.6901,0.6902,0.69,0.6899,0.6891,0.6893,0.6893,0.6892,0.6892,0.6892,0.689,0.689,0.6887,0.6888,0.6889,0.689,0.6889,0.689,0.6889,0.689,0.6891,0.6891,0.6891,0.689,0.6892,0.6891,0.689,0.6893,0.6874,0.6873,0.6873,0.6871,0.6871,0.6879,0.6892,0.6892,0.6893,0.6893,0.6892,0.6904,0.6908,0.6907,0.691,0.691,0.6909,0.6915,0.6915,0.6915,0.6915,0.692,0.6922,0.6917,0.6917,0.6917],"train":[0.5527,0.5528,0.5525,0.5525,0.5528,0.5905,0.5914,0.5913,0.6172,0.617,0.617,0.6465,0.6464,0.6465,0.6465,0.6465,0.6473,0.662,0.662,0.6651,0.6702,0.6736,0.6739,0.6756,0.6767,0.6766,0.6773,0.6772,0.6778,0.6804,0.6809,0.6823,0.6824,0.6827,0.6832,0.6838,0.6842,0.6848,0.6861,0.6868,0.6874,0.688,0.6888,0.6892,0.6902,0.6904,0.6916,0.6922,0.6933,0.6935,0.6953,0.6953,0.6961,0.6974,0.698,0.6992,0.7003,0.7008,0.701,0.7019,0.7019,0.7024,0.7022,0.7049,0.705,0.7055,0.7058,0.7059,0.7066,0.707,0.7092,0.71,0.7103,0.7104,0.7112,0.7119,0.712,0.7123,0.7134,0.7138,0.7138,0.7139,0.7144,0.7148,0.7155,0.7158,0.716,0.7163,0.7165,0.7168,0.7168,0.7172,0.7174,0.7175,0.7174,0.7179,0.718,0.7188,0.7189,0.7191,0.7195,0.7197,0.7202,0.7205,0.7211,0.7212,0.7214,0.7214,0.7216,0.7214,0.7218,0.7224,0.7226,0.7228,0.7229,0.7234,0.7237,0.724,0.724,0.7241,0.7245,0.7246,0.7248,0.7252,0.7253,0.7257,0.7258,0.7261,0.7261,0.7265,0.7268,0.7268,0.7271,0.7274,0.7273,0.7278,0.7281,0.7283,0.7284,0.7284,0.7283,0.7285,0.7287,0.7288,0.7295,0.7296,0.7298,0.7301,0.7302,0.7303,0.7304,0.7306,0.7306,0.7309,0.7309,0.7312,0.7315,0.7317,0.7318,0.732,0.7323,0.7324,0.7323,0.7324,0.7325,0.7327,0.7327,0.7327,0.7329,0.733,0.733,0.7331,0.7334,0.7338,0.7338,0.7341,0.7341,0.7344,0.7348,0.7349,0.735,0.735,0.7352,0.7353,0.7354,0.7355,0.7356,0.7361,0.7363,0.7365,0.7365,0.7367,0.7367,0.7368,0.7374,0.7377,0.738,0.738,0.7382,0.7382,0.7383,0.7386,0.7386,0.7386,0.7386,0.7387,0.739,0.7392,0.7398,0.7399,0.74,0.74,0.74,0.74,0.7403,0.7406,0.7407,0.7408,0.741,0.741,0.741,0.7412,0.7412,0.7412,0.7413,0.7414,0.7416,0.7425,0.7426,0.7428,0.743,0.7429,0.743,0.7432,0.7433,0.7434,0.7436,0.7436,0.7436,0.7438,0.7442,0.7443,0.7444,0.7444,0.7447,0.7449,0.745,0.7451,0.7451,0.7452,0.7453,0.7454,0.746,0.7461,0.7462,0.7469,0.7472,0.7472,0.7476,0.7477,0.7478,0.7481,0.7482,0.7482,0.7482,0.7485,0.7485,0.7488,0.7489,0.7489,0.749,0.749,0.7491,0.7492,0.7492,0.7493,0.7494,0.7498,0.7499,0.7501,0.7502,0.7502,0.7503,0.7504,0.7507,0.7508,0.7508,0.7507,0.7507,0.7508,0.7509,0.7511,0.7511,0.7514,0.7513,0.7517,0.7519,0.7519,0.752,0.7524]},"1.0":{"test":[0.5549,0.5045,0.5299,0.5444,0.5766,0.5785,0.5176,0.5204,0.5361,0.5601,0.5601,0.5601,0.5663,0.5663,0.5663,0.5663,0.5663,0.5516,0.6308,0.6308,0.6308,0.6308,0.6308,0.6308,0.6308,0.6308,0.6308,0.6308,0.6308,0.6308,0.6308,0.6308,0.6308,0.6308,0.6308,0.6308,0.6308,0.6308,0.6308,0.6308,0.6308,0.6308,0.6308,0.6308,0.6308,0.6308,0.6308,0.6308,0.6308,0.6308,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183,0.6183],"train":[0.5527,0.5087,0.5632,0.5686,0.5889,0.5904,0.51,0.5107,0.5333,0.5394,0.5394,0.5394,0.5699,0.5699,0.5699,0.5699,0.5699,0.5676,0.5849,0.5849,0.5849,0.5849,0.5849,0.5849,0.5849,0.5849,0.5849,0.5849,0.5849,0.5849,0.5849,0.5849,0.5849,0.5849,0.5849,0.5849,0.5849,0.5849,0.5849,0.5849,0.5849,0.5849,0.5849,0.5849,0.5849,0.5849,0.5849,0.5849,0.5849,0.5849,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818,0.5818]}}};
+const $ = id => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+const fmt = (v, d = 2) => (v === null || !isFinite(v)) ? "–" : v.toLocaleString("ko-KR", {minimumFractionDigits: d, maximumFractionDigits: d});
+const sn = (v, d = 2) => (v < 0 ? "−" : "") + fmt(Math.abs(v), d);
+const pct = (v, d = 1) => isFinite(v) ? fmt(v * 100, d) + "%" : "–";
+const sig = z => 1 / (1 + Math.exp(-z));
+const logit = p => Math.log(p / (1 - p));
+function el(tag, attrs = {}, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function txt(parent, x, y, s, a = {}) { const t = el("text", Object.assign({x, y, "font-size": 11, fill: "var(--muted)"}, a), parent); t.textContent = s; return t; }
+function axes(svg, box, xr, yr, xt, yt, xl, yl, ytf = v => v) {
+  const [L, T, W, H] = box;
+  const X = v => L + (v - xr[0]) / (xr[1] - xr[0]) * W, Y = v => T + H - (v - yr[0]) / (yr[1] - yr[0]) * H;
+  const g = el("g", {}, svg);
+  el("rect", {x: L, y: T, width: W, height: H, fill: "var(--paper)"}, g);
+  xt.forEach(v => { el("line", {x1: X(v), x2: X(v), y1: T, y2: T + H, stroke: "var(--grid)"}, g); txt(g, X(v), T + H + 16, v, {"text-anchor": "middle"}); });
+  yt.forEach(v => { el("line", {x1: L, x2: L + W, y1: Y(v), y2: Y(v), stroke: "var(--grid)"}, g); txt(g, L - 6, Y(v) + 4, ytf(v), {"text-anchor": "end"}); });
+  el("rect", {x: L, y: T, width: W, height: H, fill: "none", stroke: "var(--grid2)"}, g);
+  if (xl) txt(g, L + W / 2, T + H + 34, xl, {"text-anchor": "middle", "font-size": 12, fill: "var(--ink)"});
+  if (yl) txt(g, 14, T + H / 2, yl, {"text-anchor": "middle", "font-size": 12, fill: "var(--ink)", transform: `rotate(-90 14 ${T + H / 2})`});
+  return {X, Y, g};
+}
+function clip(svg, id, box) {
+  const d = el("defs", {}, svg), c = el("clipPath", {id}, d);
+  el("rect", {x: box[0], y: box[1], width: box[2], height: box[3]}, c);
+  return `url(#${id})`;
+}
+function svgPt(svg, ev) {
+  const p = svg.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY;
+  return p.matrixTransform(svg.getScreenCTM().inverse());
+}
+let seed = 7;
+const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+const gauss = () => { const u = Math.max(rnd(), 1e-12), v = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+
+/* 탭 */
+const tabs = [...document.querySelectorAll(".tab")];
+function show(btn) {
+  tabs.forEach(t => { const on = t === btn; t.setAttribute("aria-selected", on); $(t.dataset.p).hidden = !on; });
+  drawAll();
+}
+tabs.forEach(t => t.addEventListener("click", () => show(t)));
+
+const gini = p => 2 * p * (1 - p);
+const out = (id, s) => { const o = $(id); if (o) o.textContent = s; };
+
+/* ───────── ① 지니 불순도와 첫 질문 ───────── */
+const G = {mode: "book", t: 60, k: 4,
+  ex: {A: [1, 1, 1, 0, 1, 0, 0, 0, 0, 0], B: [1, 0, 1, 0, 0, 1, 0, 1, 0, 0]}, q: "A"};
+function gSplit(t) {   // 책: 나이 > t ?
+  let ly = 0, ln = 0, ry = 0, rn = 0;
+  D.ages.forEach(([a, s, h]) => { if (a > t) { ry += s; rn += h; } else { ly += s; ln += h; } });
+  return [ly, ly + ln, ry, ry + rn];
+}
+function gExSplit(k) {
+  const arr = G.ex[G.q]; let ly = 0, ry = 0;
+  arr.forEach((v, i) => { if (i < k) ly += v; else ry += v; });
+  return [ly, k, ry, arr.length - k];
+}
+function gStat([ly, nl, ry, nr]) {
+  const n = nl + nr, p = (ly + ry) / n, gp = gini(p);
+  const gl = nl ? gini(ly / nl) : 0, gr = nr ? gini(ry / nr) : 0, after = (nl * gl + nr * gr) / n;
+  return {n, p, gp, gl, gr, after, dg: gp - after, pl: nl ? ly / nl : NaN, pr: nr ? ry / nr : NaN, nl, nr};
+}
+const AMIN = 18, AMAX = 95;
+function gBest() { let b = [0, -1]; for (let t = AMIN; t < AMAX; t++) { const s = gStat(gSplit(t)); if (s.dg > b[1]) b = [t, s.dg]; } return b; }
+function gDraw() {
+  const v = $("gv"); v.textContent = "";
+  const book = G.mode === "book";
+  const B1 = [64, 22, 556, 250], B2 = [64, 330, 556, 92];
+  let ax1, ax2, s, curve = [];
+  if (book) {
+    const mx = Math.max(...D.ages.map(r => r[1] + r[2]));
+    const top = Math.ceil(mx / 500) * 500;
+    ax1 = axes(v, B1, [AMIN - 1, AMAX + 1], [0, top], [20, 30, 40, 50, 60, 70, 80, 90], [0, top / 2, top], null, "고객 수", y => fmt(y, 0));
+    const w = B1[2] / (AMAX - AMIN + 2) * 0.9;
+    D.ages.forEach(([a, sy, sn_]) => {
+      el("rect", {x: ax1.X(a) - w / 2, y: ax1.Y(sy + sn_), width: w, height: ax1.Y(sy) - ax1.Y(sy + sn_), fill: "var(--pt)", opacity: .55}, ax1.g);
+      el("rect", {x: ax1.X(a) - w / 2, y: ax1.Y(sy), width: w, height: ax1.Y(0) - ax1.Y(sy), fill: "var(--line)"}, ax1.g);
+    });
+    for (let t = AMIN; t < AMAX; t++) curve.push([t + 0.5, gStat(gSplit(t)).dg]);
+    s = gStat(gSplit(G.t));
+    ax2 = axes(v, B2, [AMIN - 1, AMAX + 1], [0, 0.02], [20, 30, 40, 50, 60, 70, 80, 90], [0, 0.01, 0.02], "나이", "ΔG", y => fmt(y, 2));
+  } else {
+    const arr = G.ex[G.q];
+    ax1 = axes(v, B1, [0, 10], [0, 1], [], [], null, null);
+    arr.forEach((c, i) => {
+      const ci = el("circle", {cx: ax1.X(i + 0.5), cy: ax1.Y(0.5), r: 19, fill: c ? "var(--line)" : "var(--paper)", stroke: c ? "var(--line)" : "var(--pt)", "stroke-width": 3, style: "cursor:pointer"}, ax1.g);
+      ci.dataset.i = i;
+      txt(ax1.g, ax1.X(i + 0.5), ax1.Y(0.5) + 44, c ? "가입" : "안 함", {"text-anchor": "middle", fill: c ? "var(--line)" : "var(--pt)", "font-size": 12});
+      txt(ax1.g, ax1.X(i + 0.5), ax1.Y(0.5) + 5, i + 1, {"text-anchor": "middle", fill: c ? "#fff" : "var(--pt)", "font-size": 13, "font-weight": 700});
+    });
+    txt(ax1.g, B1[0] + 10, B1[1] + 22, `질문 ${G.q}: 고객 10명을 문턱 앞뒤로 나눕니다. 점을 누르면 가입·안 함이 바뀝니다.`, {fill: "var(--ink)", "font-size": 13});
+    for (let k = 1; k < 10; k++) curve.push([k, gStat(gExSplit(k)).dg]);
+    s = gStat(gExSplit(G.k));
+    const ym = Math.max(0.2, ...curve.map(c => c[1]));
+    ax2 = axes(v, B2, [0, 10], [0, ym], [0, 2, 4, 6, 8, 10], [0, ym / 2, ym], "왼쪽에 둔 고객 수", "ΔG", y => fmt(y, 2));
+  }
+  // 문턱 선, 양쪽 표시
+  const xt = book ? G.t + 0.5 : G.k;
+  el("rect", {x: B1[0], y: B1[1], width: ax1.X(xt) - B1[0], height: B1[3], fill: "var(--band)", opacity: .35}, ax1.g);
+  el("line", {x1: ax1.X(xt), x2: ax1.X(xt), y1: B1[1], y2: B1[1] + B1[3], stroke: "var(--mean)", "stroke-width": 3}, ax1.g);
+  txt(ax1.g, ax1.X(xt) - 8, book ? B1[1] + 18 : B1[1] + B1[3] - 10, `왼쪽 ${fmt(s.nl, 0)}명 · 가입률 ${pct(s.pl)}`, {"text-anchor": "end", fill: "var(--ink)", "font-size": 12});
+  txt(ax1.g, ax1.X(xt) + 8, book ? B1[1] + 18 : B1[1] + B1[3] - 10, `오른쪽 ${fmt(s.nr, 0)}명 · 가입률 ${pct(s.pr)}`, {fill: "var(--ink)", "font-size": 12});
+  let path = ""; curve.forEach(([x, y]) => path += (path ? "L" : "M") + ax2.X(x).toFixed(1) + "," + ax2.Y(Math.max(0, y)).toFixed(1));
+  el("path", {d: path, fill: "none", stroke: "var(--line)", "stroke-width": 2.5}, ax2.g);
+  el("line", {x1: ax2.X(xt), x2: ax2.X(xt), y1: B2[1], y2: B2[1] + B2[3], stroke: "var(--mean)", "stroke-width": 2}, ax2.g);
+  el("circle", {cx: ax2.X(xt), cy: ax2.Y(Math.max(0, s.dg)), r: 5, fill: "var(--mean)"}, ax2.g);
+  // 끌기
+  const setX = ev => { const q = svgPt(v, ev);
+    if (book) { const a = AMIN - 1 + (q.x - B1[0]) / B1[2] * (AMAX - AMIN + 2); G.t = Math.max(AMIN, Math.min(AMAX - 1, Math.round(a - 0.5))); }
+    else G.k = Math.max(1, Math.min(9, Math.round((q.x - B1[0]) / B1[2] * 10)));
+    gDraw(); };
+  v.onpointerdown = ev => {
+    if (!book && ev.target.dataset && ev.target.dataset.i !== undefined) { const i = +ev.target.dataset.i; G.ex[G.q][i] ^= 1; gDraw(); return; }
+    v.setPointerCapture(ev.pointerId); G.drag = true; setX(ev); };
+  v.onpointermove = ev => { if (G.drag) setX(ev); };
+  v.onpointerup = v.onpointercancel = () => { G.drag = false; };
+  // 숫자
+  $("g-q").textContent = book ? `질문: 나이 > ${G.t}세?` : `질문 ${G.q}: 앞 ${G.k}명 | 뒤 ${10 - G.k}명`;
+  $("g-root").textContent = `${fmt(s.gp, book ? 4 : 3)} (가입률 ${pct(s.p)})`;
+  $("g-dg").textContent = fmt(s.dg, book ? 4 : 3);
+  $("g-l").textContent = `${fmt(s.nl, 0)}명 · ${pct(s.pl)}`;
+  $("g-r").textContent = `${fmt(s.nr, 0)}명 · ${pct(s.pr)}`;
+  $("g-glr").textContent = `${fmt(s.gl, 3)} / ${fmt(s.gr, 3)}`;
+  $("g-after").textContent = fmt(s.after, book ? 4 : 3);
+  $("g-read").textContent = s.dg < 1e-9
+    ? "두 무리의 가입률이 나누기 전과 같아 불순도가 하나도 줄지 않았습니다. 이런 질문은 쓸모가 없습니다."
+    : `나누기 전 불순도는 ${fmt(s.gp, 3)}, 나눈 뒤 두 무리의 가중 평균은 ${fmt(s.after, 3)}입니다. 그 차이, 질문의 값은 ΔG = ${fmt(s.dg, 4)}입니다. 한쪽 무리의 가입률이 0이나 1에 가까울수록 값이 커집니다.`;
+  if (book) { const [bt, bd] = gBest(); const c = D.cand["지난 캠페인 성공?"][4];
+    $("g-sub").textContent = `나이 질문 가운데 가장 좋은 문턱은 ${bt}세(ΔG = ${fmt(bd, 4)})입니다. 그래도 "지난 캠페인 성공?"(${fmt(c, 4)})이 더 좋은 질문입니다.`; }
+  else $("g-sub").textContent = G.q === "A" ? "책의 질문 A: 앞 4명(가입 3) | 뒤 6명(가입 1) → ΔG = 0.163." : "책의 질문 B: 5명(가입 2) | 5명(가입 2) → ΔG = 0.";
+  ["g-book", "g-exA", "g-exB"].forEach(id => $(id).classList.toggle("on", (id === "g-book" && book) || (id === "g-ex" + G.q && !book)));
+  // 후보 막대
+  const rows = Object.entries(D.cand).map(([k, r]) => [k, r[4], ""]);
+  if (book) rows.push([`지금: 나이 > ${G.t}세`, s.dg, "g"]);
+  const mx = Math.max(...rows.map(r => r[1]));
+  $("g-cand").innerHTML = rows.map(([k, d, c]) => `<div class="bar"><b>${k}</b><div class="tr"><i class="${c}" style="width:${Math.max(0, d) / mx * 100}%"></i></div><span>${fmt(d, 4)}</span></div>`).join("");
+}
+$("g-book").onclick = () => { G.mode = "book"; gDraw(); };
+$("g-exA").onclick = () => { G.mode = "ex"; G.q = "A"; G.k = 4; G.ex.A = [1, 1, 1, 0, 1, 0, 0, 0, 0, 0]; gDraw(); };
+$("g-exB").onclick = () => { G.mode = "ex"; G.q = "B"; G.k = 5; G.ex.B = [1, 0, 1, 0, 0, 1, 0, 1, 0, 0]; gDraw(); };
+$("g-best").onclick = () => {
+  if (G.mode === "book") G.t = gBest()[0];
+  else { let b = [1, -1]; for (let k = 1; k < 10; k++) { const d = gStat(gExSplit(k)).dg; if (d > b[1]) b = [k, d]; } G.k = b[0]; }
+  gDraw(); };
+
+/* ───────── ② 깊이와 과적합 (2차원 결정나무) ───────── */
+const T = {pts: [], cls: 0, preset: 3};
+function tPreset(k) {
+  seed = 11 + k; T.pts = []; T.preset = k;
+  const flip = k === 3 ? 0.22 : 0.06;
+  for (let i = 0; i < 240; i++) {
+    const x = rnd() * 10, y = rnd() * 10;
+    let c = k === 2 ? (Math.hypot(x - 5, y - 5) < 3.1 ? 1 : 0) : (x + y + (k === 3 ? 1.2 * Math.sin(x) : 0) > 10 ? 1 : 0);
+    if (rnd() < flip) c = 1 - c;
+    T.pts.push({x, y, c, test: i % 2 === 1});
+  }
+}
+function tBuild(P, d, maxD, minL) {
+  const n = P.length, r = P.reduce((a, p) => a + p.c, 0) / n;
+  const leaf = {leaf: true, p: r, n};
+  if (d >= maxD || r === 0 || r === 1 || n < 2 * minL) return leaf;
+  let best = null, g0 = gini(r);
+  for (const f of ["x", "y"]) {
+    const S = [...P].sort((a, b) => a[f] - b[f]); let ly = 0; const tot = r * n;
+    for (let i = 0; i < n - 1; i++) {
+      ly += S[i].c; const nl = i + 1, nr = n - nl;
+      if (nl < minL || nr < minL || S[i][f] === S[i + 1][f]) continue;
+      const g = (nl * gini(ly / nl) + nr * gini((tot - ly) / nr)) / n;
+      if (!best || g < best.g) best = {g, f, t: (S[i][f] + S[i + 1][f]) / 2};
+    }
+  }
+  if (!best || g0 - best.g < 1e-12) return leaf;
+  return {f: best.f, t: best.t, l: tBuild(P.filter(p => p[best.f] <= best.t), d + 1, maxD, minL), r: tBuild(P.filter(p => p[best.f] > best.t), d + 1, maxD, minL)};
+}
+const tPred = (nd, p) => nd.leaf ? nd.p : tPred(p[nd.f] <= nd.t ? nd.l : nd.r, p);
+const tLeaves = nd => nd.leaf ? 1 : tLeaves(nd.l) + tLeaves(nd.r);
+function tAcc(tree, P) { if (!P.length) return NaN; let ok = 0; P.forEach(p => { if ((tPred(tree, p) > 0.5 ? 1 : 0) === p.c) ok++; }); return ok / P.length; }
+function tDraw() {
+  const maxD = +$("d-d").value, minL = +$("d-m").value; out("d-do", maxD); out("d-mo", minL + "명");
+  const tr = T.pts.filter(p => !p.test), te = T.pts.filter(p => p.test);
+  const v = $("dv"); v.textContent = "";
+  const B = [56, 18, 566, 400], ax = axes(v, B, [0, 10], [0, 10], [0, 2, 4, 6, 8, 10], [0, 2, 4, 6, 8, 10], "특징 x₁", "특징 x₂");
+  const lay = el("g", {"clip-path": clip(v, "dclip", B)}, v);
+  const tree = tr.length ? tBuild(tr, 0, maxD, minL) : null;
+  const paint = (nd, x0, x1, y0, y1) => {
+    if (nd.leaf) {
+      const a = {x: ax.X(x0), y: ax.Y(y1), width: ax.X(x1) - ax.X(x0), height: ax.Y(y0) - ax.Y(y1)};
+      el("rect", Object.assign({fill: "var(--pt)", opacity: (1 - nd.p) * 0.32}, a), lay);
+      el("rect", Object.assign({fill: "var(--line)", opacity: nd.p * 0.38}, a), lay);
+      el("rect", Object.assign({fill: "none", stroke: "var(--ink)", "stroke-opacity": .35, "stroke-width": 1}, a), lay);
+      return; }
+    if (nd.f === "x") { paint(nd.l, x0, nd.t, y0, y1); paint(nd.r, nd.t, x1, y0, y1); }
+    else { paint(nd.l, x0, x1, y0, nd.t); paint(nd.r, x0, x1, nd.t, y1); }
+  };
+  if (tree) paint(tree, 0, 10, 0, 10);
+  T.pts.forEach(p => {
+    const col = p.c ? "var(--line)" : "var(--pt)";
+    el("circle", {cx: ax.X(p.x), cy: ax.Y(p.y), r: p.test ? 4.2 : 4.8, fill: p.test ? "var(--paper)" : col, stroke: col, "stroke-width": p.test ? 1.8 : 1}, lay);
+  });
+  v.onclick = ev => { const q = svgPt(v, ev); if (q.x < B[0] || q.x > B[0] + B[2] || q.y < B[1] || q.y > B[1] + B[3]) return;
+    T.pts.push({x: (q.x - B[0]) / B[2] * 10, y: (B[1] + B[3] - q.y) / B[3] * 10, c: T.cls, test: false}); tDraw(); };
+  const aTr = tree ? tAcc(tree, tr) : NaN, aTe = tree ? tAcc(tree, te) : NaN;
+  $("d-leaf").textContent = tree ? tLeaves(tree) : "–";
+  $("d-acc").textContent = `${pct(aTr)} / ${pct(aTe)}`;
+  // 깊이별 정확도
+  const c = $("dc"); c.textContent = "";
+  const cb = [44, 10, 360, 120], cx = axes(c, cb, [0.5, 12.5], [0.5, 1], [1, 2, 4, 6, 8, 10, 12], [0.5, 0.75, 1], "최대 깊이", null, y => fmt(y, 2));
+  const curves = [[], []]; let bestD = 1, bestA = -1;
+  for (let d = 1; d <= 12; d++) { const t = tBuild(tr, 0, d, minL), a = tAcc(t, tr), b = tAcc(t, te); curves[0].push([d, a]); curves[1].push([d, b]); if (b > bestA + 1e-9) { bestA = b; bestD = d; } }
+  curves.forEach((cv, j) => { let pth = ""; cv.forEach(([x, y]) => pth += (pth ? "L" : "M") + cx.X(x).toFixed(1) + "," + cx.Y(y).toFixed(1));
+    el("path", {d: pth, fill: "none", stroke: j ? "var(--line)" : "var(--muted)", "stroke-width": 2.5, "stroke-dasharray": j ? "" : "5 4"}, cx.g); });
+  el("line", {x1: cx.X(maxD), x2: cx.X(maxD), y1: cb[1], y2: cb[1] + cb[3], stroke: "var(--mean)", "stroke-width": 2}, cx.g);
+  txt(cx.g, cb[0] + cb[2] - 4, cb[1] + 14, "훈련 (점선)", {"text-anchor": "end", fill: "var(--muted)"});
+  txt(cx.g, cb[0] + cb[2] - 4, cb[1] + 28, "시험 (실선)", {"text-anchor": "end", fill: "var(--line)"});
+  $("d-read").textContent = !tree ? "훈련 점이 있어야 나무를 키울 수 있습니다."
+    : `깊이 ${maxD}: 훈련 ${pct(aTr)}, 시험 ${pct(aTe)}. 이 데이터에서 시험 정확도는 깊이 ${bestD}일 때 가장 높았습니다(${pct(bestA)}). ` +
+      (aTr - aTe > 0.08 ? "훈련과 시험의 차이가 큽니다. 나무가 잡음까지 외운 과적합입니다." : "훈련과 시험의 차이가 크지 않습니다.");
+  ["d-p1", "d-p2", "d-p3"].forEach((id, i) => $(id).classList.toggle("on", T.preset === i + 1));
+  dbDraw();
+}
+function dbDraw() {
+  const k = +$("d-bk").value; out("d-bko", k);
+  const c = $("db"); c.textContent = "";
+  const cb = [44, 12, 360, 130], cx = axes(c, cb, [0.5, 25.5], [0.5, 1], [1, 5, 10, 15, 20, 25], [0.5, 0.6, 0.7, 0.8, 0.9, 1], "최대 깊이", "AUC", y => fmt(y, 1));
+  [1, 2].forEach(j => { let pth = ""; D.depth.forEach(r => pth += (pth ? "L" : "M") + cx.X(r[0]).toFixed(1) + "," + cx.Y(r[j]).toFixed(1));
+    el("path", {d: pth, fill: "none", stroke: j === 2 ? "var(--line)" : "var(--muted)", "stroke-width": 2.5, "stroke-dasharray": j === 2 ? "" : "5 4"}, cx.g); });
+  const r = D.depth[k - 1];
+  el("line", {x1: cx.X(k), x2: cx.X(k), y1: cb[1], y2: cb[1] + cb[3], stroke: "var(--mean)", "stroke-width": 2}, cx.g);
+  el("circle", {cx: cx.X(k), cy: cx.Y(r[2]), r: 4.5, fill: "var(--mean)"}, cx.g);
+  txt(cx.g, cb[0] + 6, cb[1] + 14, "훈련 (점선)", {fill: "var(--muted)"}); txt(cx.g, cb[0] + 6, cb[1] + 28, "시험 (실선)", {fill: "var(--line)"});
+  $("d-bread").textContent = `깊이 ${k}: 훈련 AUC ${fmt(r[1], 3)}, 시험 AUC ${fmt(r[2], 3)}, 잎 ${fmt(r[3], 0)}개. 시험이 가장 높은 깊이는 ` +
+    (() => { const b = D.depth.reduce((a, q) => q[2] > a[2] ? q : a); return `${b[0]}(${fmt(b[2], 3)})입니다.`; })();
+}
+$("d-p1").onclick = () => { tPreset(1); tDraw(); }; $("d-p2").onclick = () => { tPreset(2); tDraw(); }; $("d-p3").onclick = () => { tPreset(3); tDraw(); };
+$("d-pc").onclick = () => { T.cls ^= 1; $("d-pc").classList.toggle("on", !!T.cls); $("d-pc").textContent = T.cls ? "빨강 점 찍는 중" : "빨강 점 찍기"; };
+["d-d", "d-m"].forEach(id => $(id).addEventListener("input", tDraw)); $("d-bk").addEventListener("input", dbDraw);
+
+/* ───────── ③ 다수결과 숲 ───────── */
+const lgam = (() => { const t = [0]; for (let i = 1; i <= 400; i++) t[i] = t[i - 1] + Math.log(i); return n => t[n]; })();
+function condorcet(n, p) { let s = 0; for (let k = (n + 1) / 2; k <= n; k++) s += Math.exp(lgam(n) - lgam(k) - lgam(n - k) + k * Math.log(p) + (n - k) * Math.log(1 - p)); return s; }
+const pMaj = (n, p, r) => r * p + (1 - r) * condorcet(n, p);   // 닮은 정도 ρ: 그만큼은 한 사람처럼 움직인다고 본 단순한 모형
+const kOf = s => Math.max(1, Math.round(Math.exp(s / 100 * Math.log(300))));
+function cDraw() {
+  const p = +$("c-p").value, r = +$("c-r").value, n = +$("c-n").value;
+  out("c-po", fmt(p, 2)); out("c-ro", fmt(r, 2)); out("c-no", n + "명");
+  const v = $("cv"); v.textContent = "";
+  const ns = []; for (let k = 1; k <= 101; k += 2) ns.push(k);
+  const B1 = [64, 18, 556, 220], ylo = Math.min(0.4, p - 0.05);
+  const a1 = axes(v, B1, [0, 102], [ylo, 1], [1, 11, 21, 31, 41, 51, 61, 71, 81, 91, 101], [0.5, 0.6, 0.7, 0.8, 0.9, 1].filter(t => t >= ylo), null, "다수결이 옳을 확률", y => fmt(y, 1));
+  const line = (ax, f, st) => { let pth = ""; ns.forEach(k => pth += (pth ? "L" : "M") + ax.X(k).toFixed(1) + "," + ax.Y(f(k)).toFixed(1)); el("path", Object.assign({d: pth, fill: "none"}, st), ax.g); };
+  el("line", {x1: B1[0], x2: B1[0] + B1[2], y1: a1.Y(p), y2: a1.Y(p), stroke: "var(--grid2)", "stroke-dasharray": "2 3"}, a1.g);
+  txt(a1.g, B1[0] + B1[2] - 4, a1.Y(p) + 14, `한 사람 p = ${fmt(p, 2)}`, {"text-anchor": "end"});
+  line(a1, k => pMaj(k, p, 0), {stroke: "var(--muted)", "stroke-width": 2, "stroke-dasharray": "6 4"});
+  line(a1, k => pMaj(k, p, r), {stroke: "var(--line)", "stroke-width": 3});
+  el("circle", {cx: a1.X(n), cy: a1.Y(pMaj(n, p, r)), r: 6, fill: "var(--mean)"}, a1.g);
+  const B2 = [64, 300, 556, 120];
+  const a2 = axes(v, B2, [0, 102], [0, 1], [1, 11, 21, 31, 41, 51, 61, 71, 81, 91, 101], [0, 0.5, 1], "사람(나무) 수 n = B", "평균의 흔들림", y => fmt(y, 1));
+  line(a2, k => 1 / k, {stroke: "var(--muted)", "stroke-width": 2, "stroke-dasharray": "6 4"});
+  line(a2, k => r + (1 - r) / k, {stroke: "var(--line)", "stroke-width": 3});
+  el("line", {x1: B2[0], x2: B2[0] + B2[2], y1: a2.Y(r), y2: a2.Y(r), stroke: "var(--mean)", "stroke-dasharray": "3 3"}, a2.g);
+  el("circle", {cx: a2.X(n), cy: a2.Y(r + (1 - r) / n), r: 6, fill: "var(--mean)"}, a2.g);
+  const pm = pMaj(n, p, r), va = r + (1 - r) / n;
+  $("c-pm").textContent = fmt(pm, 3); $("c-var").textContent = fmt(va, 3);
+  $("c-read").textContent = (p <= 0.5 ? "한 사람이 동전 던지기보다 못하면(p ≤ 0.5) 사람을 늘릴수록 다수결이 오히려 더 틀립니다. "
+      : `p = ${fmt(p, 2)}인 ${n}명이 다수결을 하면 옳을 확률은 ${fmt(pm, 3)}입니다. `) +
+    (r > 0 ? `판단이 ρ = ${fmt(r, 2)}만큼 닮으면 흔들림은 아무리 늘려도 ${fmt(r, 2)} 아래로 내려가지 않습니다(식 10-4의 ρσ²). 그래서 랜덤 포레스트는 나무끼리 덜 닮게 만듭니다.`
+      : "서로 상관없이 판단하면 사람을 늘릴수록 흔들림이 1/n로 줄어듭니다.");
+  // 책: 세 가지 숲
+  const lo = 0.55, hi = 0.75, w = x => (x - lo) / (hi - lo) * 100;
+  $("c-forest").innerHTML = Object.entries(D.forests).map(([k, [one, f, q]]) =>
+    `<div class="bar"><b>${k}</b><div class="tr"><i style="width:${w(f)}%"></i><i class="g" style="width:${w(one)}%"></i></div><span>${fmt(f, 3)}</span></div>` +
+    `<p class="sub" style="margin:0 0 6px">나무 하나 ${fmt(one, 3)} → 숲 ${fmt(f, 3)} · 서로 다른 첫 질문 ${q}가지</p>`).join("");
+  ckDraw();
+}
+function ckDraw() {
+  const k = kOf(+$("c-k").value); out("c-ko", k + "그루");
+  const c = $("ck"); c.textContent = "";
+  const lx = x => Math.log(x), cb = [44, 10, 360, 112];
+  const cx = axes(c, cb, [0, lx(300)], [0.6, 0.72], [], [0.6, 0.64, 0.68, 0.72], "나무 수 (눈금은 곱절 간격)", null, y => fmt(y, 2));
+  [1, 3, 10, 30, 100, 300].forEach(t => txt(cx.g, cx.X(lx(t)), cb[1] + cb[3] + 16, t, {"text-anchor": "middle"}));
+  let pth = ""; D.rfk.forEach((a, i) => pth += (pth ? "L" : "M") + cx.X(lx(i + 1)).toFixed(1) + "," + cx.Y(Math.max(0.6, a)).toFixed(1));
+  el("path", {d: pth, fill: "none", stroke: "var(--line)", "stroke-width": 2.5}, cx.g);
+  const a = D.rfk[k - 1];
+  el("line", {x1: cx.X(lx(k)), x2: cx.X(lx(k)), y1: cb[1], y2: cb[1] + cb[3], stroke: "var(--mean)", "stroke-width": 2}, cx.g);
+  el("circle", {cx: cx.X(lx(k)), cy: cx.Y(a), r: 4.5, fill: "var(--mean)"}, cx.g);
+  $("c-kread").textContent = `랜덤 포레스트 ${k}그루: 시험 AUC ${fmt(a, 3)} (1그루 ${fmt(D.rfk[0], 3)}, 300그루 ${fmt(D.rfk[299], 3)}). 나무를 늘려도 나빠지지는 않고, 어느 순간 거의 멈춥니다.`;
+}
+["c-p", "c-r", "c-n"].forEach(id => $(id).addEventListener("input", cDraw)); $("c-k").addEventListener("input", ckDraw);
+
+/* ───────── ④ 부스팅 ───────── */
+const Bo = {mode: "ex", m: 0, hist: []};
+function boWave() {
+  seed = 5; Bo.tr = []; Bo.te = [];
+  for (let i = 0; i < 80; i++) { const x = rnd(), y = Math.sin(2 * Math.PI * x) + 0.35 * gauss(); (i % 2 ? Bo.te : Bo.tr).push({x, y}); }
+}
+function stump(P, res) {   // 잔차에 맞춘 그루터기(질문 하나짜리 회귀나무)
+  const idx = P.map((p, i) => i).sort((a, b) => P[a].x - P[b].x), n = P.length;
+  let tot = res.reduce((a, b) => a + b, 0), s = 0, best = null;
+  for (let j = 0; j < n - 1; j++) {
+    s += res[idx[j]]; const nl = j + 1, nr = n - nl;
+    const sc = s * s / nl + (tot - s) * (tot - s) / nr;
+    if (!best || sc > best.sc) best = {sc, t: (P[idx[j]].x + P[idx[j + 1]].x) / 2, l: s / nl, r: (tot - s) / nr};
+  }
+  return best;
+}
+function boState() {
+  const nu = +$("b-nu").value;
+  if (Bo.mode === "ex") {
+    const y = [1, 0, 0, 0]; let F = [0.25, 0.25, 0.25, 0.25]; const prev = [];
+    for (let m = 0; m < Bo.m; m++) { prev.push(F); F = F.map((f, i) => f + nu * (y[i] - f)); }
+    return {y, F, prev: prev.length ? prev[prev.length - 1] : null};
+  }
+  const F0 = Bo.tr.reduce((a, p) => a + p.y, 0) / Bo.tr.length, trees = []; let F = Bo.tr.map(() => F0);
+  const teH = [];
+  const fx = x => F0 + nu * trees.reduce((a, t) => a + (x <= t.t ? t.l : t.r), 0);
+  const sseTe = () => Bo.te.reduce((a, p) => a + (p.y - fx(p.x)) ** 2, 0);
+  teH.push(sseTe());
+  for (let m = 0; m < Bo.m; m++) {
+    const t = stump(Bo.tr, Bo.tr.map((p, i) => p.y - F[i])); trees.push(t);
+    F = F.map((f, i) => f + nu * (Bo.tr[i].x <= t.t ? t.l : t.r)); teH.push(sseTe());
+  }
+  return {F, fx, teH, sseTr: Bo.tr.reduce((a, p, i) => a + (p.y - F[i]) ** 2, 0)};
+}
+function boDraw() {
+  const nu = +$("b-nu").value; out("b-nuo", fmt(nu, 2));
+  const v = $("bv"); v.textContent = "";
+  const S = boState(), ex = Bo.mode === "ex";
+  $("b-m").textContent = Bo.m;
+  if (ex) {
+    const B = [64, 20, 556, 400], ax = axes(v, B, [0.4, 4.6], [-0.1, 1.1], [], [0, 0.25, 0.5, 0.75, 1], null, "가입할 확률 예측 F", y => fmt(y, 2));
+    S.y.forEach((y, i) => {
+      const x = i + 1;
+      txt(ax.g, ax.X(x), B[1] + B[3] + 18, `고객 ${x} (${y ? "가입" : "안 함"})`, {"text-anchor": "middle", fill: "var(--ink)", "font-size": 12});
+      el("rect", {x: ax.X(x) - 7, y: Math.min(ax.Y(y), ax.Y(S.F[i])), width: 14, height: Math.abs(ax.Y(y) - ax.Y(S.F[i])), fill: "var(--muted)", opacity: .45}, ax.g);
+      if (S.prev) el("line", {x1: ax.X(x) - 34, x2: ax.X(x) + 34, y1: ax.Y(S.prev[i]), y2: ax.Y(S.prev[i]), stroke: "var(--line)", "stroke-width": 2, opacity: .35, "stroke-dasharray": "4 3"}, ax.g);
+      el("line", {x1: ax.X(x) - 34, x2: ax.X(x) + 34, y1: ax.Y(S.F[i]), y2: ax.Y(S.F[i]), stroke: "var(--line)", "stroke-width": 4}, ax.g);
+      txt(ax.g, ax.X(x) + 40, ax.Y(S.F[i]) + 4, fmt(S.F[i], 4), {fill: "var(--line)", "font-size": 12});
+      el("circle", {cx: ax.X(x), cy: ax.Y(y), r: 9, fill: y ? "var(--line)" : "var(--pt)", stroke: "var(--paper)", "stroke-width": 2}, ax.g);
+    });
+    txt(ax.g, B[0] + 8, B[1] + 18, "점선은 바로 앞 단계의 예측입니다.", {"font-size": 12});
+    $("b-k1").textContent = "고객 1의 예측"; $("b-v1").textContent = fmt(S.F[0], 4);
+    $("b-k2").textContent = "고객 2~4의 예측"; $("b-v2").textContent = fmt(S.F[1], 4);
+    const sse = S.y.reduce((a, y, i) => a + (y - S.F[i]) ** 2, 0); $("b-sse").textContent = fmt(sse, 4);
+    $("b-read").textContent = Bo.m === 0 ? "처음 예측은 모두 같은 0.25(가입률)입니다. 고객 1의 잔차는 1 − 0.25 = 0.75입니다."
+      : `${Bo.m}그루째: 각 나무가 잔차(실제 − 예측)를 맞히고, 그 ${fmt(nu, 2)}배만 더합니다. 고객 1은 ${fmt(S.prev[0], 4)} + ${fmt(nu, 2)} × ${fmt(1 - S.prev[0], 4)} = ${fmt(S.F[0], 4)}가 됩니다.`;
+  } else {
+    const B = [64, 20, 556, 400], ax = axes(v, B, [0, 1], [-2, 2], [0, 0.25, 0.5, 0.75, 1], [-2, -1, 0, 1, 2], "x", "y", y => fmt(y, 0));
+    const lay = el("g", {"clip-path": clip(v, "bclip", B)}, v);
+    Bo.tr.forEach((p, i) => el("rect", {x: ax.X(p.x) - 2, y: Math.min(ax.Y(p.y), ax.Y(S.F[i])), width: 4, height: Math.abs(ax.Y(p.y) - ax.Y(S.F[i])), fill: "var(--muted)", opacity: .45}, lay));
+    let tp = ""; for (let x = 0; x <= 1.0001; x += 0.005) tp += (tp ? "L" : "M") + ax.X(x).toFixed(1) + "," + ax.Y(Math.sin(2 * Math.PI * x)).toFixed(1);
+    el("path", {d: tp, fill: "none", stroke: "var(--grid2)", "stroke-width": 2, "stroke-dasharray": "5 4"}, lay);
+    let fp = ""; for (let x = 0; x <= 1.0001; x += 0.002) fp += (fp ? "L" : "M") + ax.X(x).toFixed(1) + "," + ax.Y(S.fx(x)).toFixed(1);
+    el("path", {d: fp, fill: "none", stroke: "var(--line)", "stroke-width": 3}, lay);
+    Bo.te.forEach(p => el("circle", {cx: ax.X(p.x), cy: ax.Y(p.y), r: 4.5, fill: "var(--paper)", stroke: "var(--pt)", "stroke-width": 1.8}, lay));
+    Bo.tr.forEach(p => el("circle", {cx: ax.X(p.x), cy: ax.Y(p.y), r: 4.8, fill: "var(--pt)"}, lay));
+    txt(ax.g, B[0] + 8, B[1] + 18, "채운 점: 훈련 · 빈 점: 시험 · 점선: 참값 sin(2πx)", {"font-size": 12});
+    $("b-k1").textContent = "F(0.25) (참값 1)"; $("b-v1").textContent = fmt(S.fx(0.25), 3);
+    $("b-k2").textContent = "시험 잔차 제곱합"; $("b-v2").textContent = fmt(S.teH[S.teH.length - 1], 2);
+    $("b-sse").textContent = fmt(S.sseTr, 2);
+    let bm = 0; S.teH.forEach((s, i) => { if (s < S.teH[bm]) bm = i; });
+    $("b-read").textContent = Bo.m === 0 ? "처음 예측은 훈련 y의 평균, 평평한 선입니다. 한 그루씩 더해 잔차를 줄여 갑니다."
+      : `훈련 잔차 ${fmt(S.sseTr, 2)}. 시험 잔차는 ${bm}그루일 때 가장 작았습니다(${fmt(S.teH[bm], 2)}). ` + (bm < Bo.m - 3 ? "그 뒤로 더한 나무는 잡음을 따라가 시험 잔차를 키웠습니다. 조기 종료가 필요한 까닭입니다." : "아직 시험 잔차가 줄고 있습니다.");
+  }
+  ["b-ex", "b-wave"].forEach(id => $(id).classList.toggle("on", (id === "b-ex") === ex));
+  bbDraw();
+}
+function bbDraw() {
+  const k = +$("b-k").value; out("b-ko", k + "그루");
+  const c = $("bb"); c.textContent = "";
+  const cb = [44, 12, 360, 130], cx = axes(c, cb, [0, 300], [0.5, 0.75], [1, 50, 100, 150, 200, 250, 300], [0.5, 0.55, 0.6, 0.65, 0.7, 0.75], "나무 수", null, y => fmt(y, 2));
+  const cols = {"0.05": "var(--line)", "1.0": "var(--muted)"};
+  Object.entries(D.stage).forEach(([r, s]) => { let pth = ""; s.test.forEach((a, i) => pth += (pth ? "L" : "M") + cx.X(i + 1).toFixed(1) + "," + cx.Y(Math.max(0.5, a)).toFixed(1));
+    el("path", {d: pth, fill: "none", stroke: cols[r], "stroke-width": 2.5, "stroke-dasharray": r === "1.0" ? "5 4" : ""}, cx.g); });
+  el("line", {x1: cx.X(k), x2: cx.X(k), y1: cb[1], y2: cb[1] + cb[3], stroke: "var(--mean)", "stroke-width": 2}, cx.g);
+  txt(cx.g, cb[0] + cb[2] - 4, cb[1] + cb[3] - 22, "학습률 0.05 (실선)", {"text-anchor": "end", fill: "var(--line)"});
+  txt(cx.g, cb[0] + cb[2] - 4, cb[1] + cb[3] - 8, "학습률 1.0 (점선)", {"text-anchor": "end", fill: "var(--muted)"});
+  const a = D.stage["0.05"].test, b = D.stage["1.0"].test;
+  const am = a.indexOf(Math.max(...a)) + 1, bmx = b.indexOf(Math.max(...b)) + 1;
+  $("b-bread").textContent = `${k}그루: 학습률 0.05 → ${fmt(a[k - 1], 3)}, 1.0 → ${fmt(b[k - 1], 3)}. 가장 높은 곳은 0.05가 ${am}그루(${fmt(a[am - 1], 3)}), 1.0은 ${bmx}그루(${fmt(b[bmx - 1], 3)})입니다.`;
+}
+$("b-nu").addEventListener("input", boDraw); $("b-k").addEventListener("input", bbDraw);
+$("b-1").onclick = () => { Bo.m += 1; boDraw(); }; $("b-10").onclick = () => { Bo.m += 10; boDraw(); }; $("b-0").onclick = () => { Bo.m = 0; boDraw(); };
+$("b-ex").onclick = () => { Bo.mode = "ex"; Bo.m = 0; boDraw(); }; $("b-wave").onclick = () => { Bo.mode = "wave"; Bo.m = 0; boDraw(); };
+
+function drawAll() {
+  if (!$("p-gini").hidden) gDraw();
+  if (!$("p-depth").hidden) tDraw();
+  if (!$("p-crowd").hidden) cDraw();
+  if (!$("p-boost").hidden) boDraw();
+}
+/* 시작 */
+boWave(); tPreset(3); gDraw();
+})();
+</script>
+</body></html>
