@@ -1,0 +1,630 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>
+<title>회귀분석 시뮬레이터</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@400;600;800&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* 레이아웃: 모눈종이 위 그래프(왼쪽)와 계산 노트(오른쪽). 좁으면 위아래로 쌓인다. */
+:root{
+  --bg:#f5f6f3; --paper:#ffffff; --grid:#e3e7e1; --grid2:#cfd6cd; --ink:#1f2a24; --muted:#5d6b63;
+  --line:#c8234b; --line-soft:rgba(200,35,75,.14); --pt:#24527a; --pt-soft:rgba(36,82,122,.18);
+  --mean:#8a6d1d; --mine:#2f8f5b; --band:rgba(36,82,122,.10); --sq:rgba(200,35,75,.13);
+  --chip:#eef1ec; --border:#d5dbd3;
+  --f-head:"Gothic A1","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --f-body:"Gothic A1","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141917; --paper:#1b211e; --grid:#27302b; --grid2:#33403a; --ink:#e6ece7; --muted:#9aa9a0;
+  --line:#ff5c7f; --line-soft:rgba(255,92,127,.18); --pt:#7fb6e6; --pt-soft:rgba(127,182,230,.2);
+  --mean:#d8b45a; --mine:#5fd394; --band:rgba(127,182,230,.12); --sq:rgba(255,92,127,.16);
+  --chip:#232b27; --border:#34403a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141917; --paper:#1b211e; --grid:#27302b; --grid2:#33403a; --ink:#e6ece7; --muted:#9aa9a0;
+  --line:#ff5c7f; --line-soft:rgba(255,92,127,.18); --pt:#7fb6e6; --pt-soft:rgba(127,182,230,.2);
+  --mean:#d8b45a; --mine:#5fd394; --band:rgba(127,182,230,.12); --sq:rgba(255,92,127,.16);
+  --chip:#232b27; --border:#34403a; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+header h1{font-family:var(--f-head);font-weight:800;font-size:1.65rem;margin:0;letter-spacing:-.01em;text-wrap:balance}
+header p{margin:4px 0 0;color:var(--muted);max-width:70ch}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;border-bottom:1px solid var(--border);padding-bottom:8px}
+.tab{font:600 .95rem var(--f-body);border:1px solid var(--border);background:var(--paper);color:var(--ink);
+  padding:7px 14px;border-radius:8px;cursor:pointer}
+.tab[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tab:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--line);outline-offset:2px}
+.panel{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:860px){.panel{grid-template-columns:minmax(0,1fr)}}
+.stage{background:var(--paper);border:1px solid var(--border);border-radius:10px;padding:10px;min-width:0}
+.stage svg,.stage canvas{display:block;width:100%;height:auto;touch-action:none;user-select:none}
+.hint{font-size:.85rem;color:var(--muted);margin:6px 4px 0}
+.side{display:flex;flex-direction:column;gap:14px;min-width:0}
+.card{background:var(--paper);border:1px solid var(--border);border-radius:10px;padding:14px 16px;min-width:0}
+.card h2{font:800 1rem var(--f-head);margin:0 0 8px}
+.eq{font-family:var(--f-num);font-size:1.25rem;font-weight:600;color:var(--line);overflow-x:auto;white-space:nowrap}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px;margin-top:10px}
+.stat{display:flex;flex-direction:column;border-top:1px solid var(--grid2);padding-top:6px}
+.stat b{font:600 .78rem var(--f-body);color:var(--muted);letter-spacing:.02em}
+.stat span{font:600 1.1rem var(--f-num);font-variant-numeric:tabular-nums}
+.read{font-size:.92rem;margin:10px 0 0}
+.row{display:flex;flex-wrap:wrap;gap:6px}
+button.b{font:600 .85rem var(--f-body);border:1px solid var(--border);background:var(--chip);color:var(--ink);
+  padding:6px 11px;border-radius:7px;cursor:pointer}
+button.b:hover{border-color:var(--ink)}
+button.b.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+label.sl{display:grid;grid-template-columns:7.5em minmax(0,1fr) 4.2em;gap:8px;align-items:center;font-size:.88rem;margin:4px 0}
+label.sl output{font-family:var(--f-num);text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--line)}
+.chk{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.88rem;margin-top:8px}
+.chk label{display:flex;gap:5px;align-items:center;cursor:pointer}
+details{font-size:.9rem}
+details summary{cursor:pointer;font-weight:600}
+.calc{font-family:var(--f-num);font-size:.82rem;background:var(--chip);border-radius:7px;padding:10px;margin-top:8px;overflow-x:auto;white-space:pre;line-height:1.55}
+.box{background:var(--chip);border-radius:8px;padding:10px 12px;font-size:.88rem}
+.box strong{display:block;margin-bottom:2px}
+table.t{border-collapse:collapse;width:100%;font-size:.88rem}
+table.t th,table.t td{border-bottom:1px solid var(--grid2);padding:5px 6px;text-align:right;font-variant-numeric:tabular-nums}
+table.t th:first-child,table.t td:first-child{text-align:left}
+table.t td{font-family:var(--f-num)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.8rem;color:var(--muted);margin:6px 4px 0}
+.legend i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:4px}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (max-width:520px){.two{grid-template-columns:minmax(0,1fr)}}
+svg text{font-family:var(--f-body)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+<header>
+  <h1>회귀분석 시뮬레이터</h1>
+  <p>『빅데이터분석 with 파이썬』 8장 「내일의 발전량: 회귀 분석」의 개념을 손으로 움직여 봅니다. 점을 찍고 끌면 회귀식, 회귀선, SSE, 결정계수가 바로 다시 계산됩니다.</p>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab" role="tab" id="tab-simple" aria-selected="true" data-p="p-simple">① 단순회귀: 점 찍기</button>
+  <button class="tab" role="tab" id="tab-multi" aria-selected="false" data-p="p-multi">② 다중회귀와 다중공선성</button>
+  <button class="tab" role="tab" id="tab-gd" aria-selected="false" data-p="p-gd">③ 경사하강법</button>
+  <button class="tab" role="tab" id="tab-mean" aria-selected="false" data-p="p-mean">④ 평균으로의 회귀</button>
+</nav>
+
+<!-- ① 단순회귀 -->
+<section class="panel" id="p-simple">
+  <div class="stage">
+    <svg id="sv" viewBox="0 0 640 460" aria-label="점을 찍는 xy 평면"></svg>
+    <p class="hint">빈 곳을 누르면 점이 생기고, 점을 끌면 옮겨집니다. 점을 두 번 누르거나 <b>지우기 모드</b>에서 누르면 지워집니다.</p>
+    <div class="legend"><span><i style="background:var(--line)"></i>최소제곱 회귀선</span><span><i style="background:var(--mean)"></i>평균선 ȳ</span><span><i style="background:var(--mine)"></i>내 직선</span><span><i style="background:var(--pt)"></i>데이터 점</span></div>
+  </div>
+  <div class="side">
+    <div class="card">
+      <h2>회귀식</h2>
+      <div class="eq" id="s-eq">ŷ = –</div>
+      <div class="stats">
+        <div class="stat"><b>점의 개수 n</b><span id="s-n">–</span></div>
+        <div class="stat"><b>상관계수 r</b><span id="s-r">–</span></div>
+        <div class="stat"><b>잔차 제곱합 SSE</b><span id="s-sse">–</span></div>
+        <div class="stat"><b>처음 흩어짐 SST</b><span id="s-sst">–</span></div>
+        <div class="stat"><b>결정계수 R²</b><span id="s-r2">–</span></div>
+        <div class="stat"><b>잔차의 합</b><span id="s-rs">–</span></div>
+      </div>
+      <p class="read" id="s-read"></p>
+    </div>
+    <div class="card">
+      <h2>데이터와 보기</h2>
+      <div class="row">
+        <button class="b" id="s-book">책 예제 8-1 (공부시간)</button>
+        <button class="b" id="s-rand">무작위 20점</button>
+        <button class="b" id="s-out">이상값 하나 더하기</button>
+        <button class="b" id="s-clear">모두 지우기</button>
+        <button class="b" id="s-del">지우기 모드</button>
+      </div>
+      <div class="chk">
+        <label><input type="checkbox" id="c-res" checked> 잔차 선</label>
+        <label><input type="checkbox" id="c-sq"> 잔차 제곱(넓이)</label>
+        <label><input type="checkbox" id="c-mean"> 평균선 ȳ (SST)</label>
+        <label><input type="checkbox" id="c-band"> 95% 예측구간</label>
+        <label><input type="checkbox" id="c-mine"> 내 직선 그려 보기</label>
+      </div>
+      <div id="mine-box" hidden>
+        <label class="sl">내 기울기 <input type="range" id="m-b" min="-10" max="15" step="0.05" value="2"><output id="m-bo">2</output></label>
+        <label class="sl">내 절편 <input type="range" id="m-a" min="-20" max="110" step="0.5" value="60"><output id="m-ao">60</output></label>
+        <p class="read" id="m-read"></p>
+      </div>
+    </div>
+    <div class="card">
+      <details>
+        <summary>계산 과정 보기 (식 8-2 ~ 8-4)</summary>
+        <div class="calc" id="s-calc"></div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ② 다중회귀 -->
+<section class="panel" id="p-multi" hidden>
+  <div class="stage">
+    <div class="two">
+      <svg id="mv1" viewBox="0 0 400 320" aria-label="차 나이와 값"></svg>
+      <svg id="mv2" viewBox="0 0 400 320" aria-label="실제 값과 예측 값"></svg>
+    </div>
+    <p class="hint">왼쪽: 차 나이와 값. 점 색이 진할수록 주행거리가 깁니다. 오른쪽: 다중회귀의 예측값과 실제값(대각선에 가까울수록 잘 맞음).</p>
+    <svg id="mv3" viewBox="0 0 820 170" aria-label="다시 뽑은 기울기의 흩어짐"></svg>
+    <p class="hint">아래: 같은 조건에서 데이터를 다시 뽑을 때마다 구한 "차 나이" 계수. 진짜 값(세로선) 둘레로 얼마나 흔들리는지 봅니다.</p>
+  </div>
+  <div class="side">
+    <div class="card">
+      <h2>중고차 값 = b₀ + b₁·차 나이 + b₂·주행거리</h2>
+      <p class="read" style="margin-top:0">02절 2.1의 중고차 예입니다. 진짜 관계를 정해 두고 데이터를 뽑은 뒤, 회귀가 그 관계를 얼마나 잘 찾는지 봅니다. 값은 만 원, 주행거리는 만 km입니다.</p>
+      <label class="sl">진짜 b₁ (나이) <input type="range" id="g-b1" min="-300" max="0" step="10" value="-150"><output id="g-b1o"></output></label>
+      <label class="sl">진짜 b₂ (거리) <input type="range" id="g-b2" min="-100" max="0" step="5" value="-40"><output id="g-b2o"></output></label>
+      <label class="sl">두 변수의 상관 <input type="range" id="g-rho" min="0" max="0.99" step="0.01" value="0.6"><output id="g-rhoo"></output></label>
+      <label class="sl">흔들림 σ <input type="range" id="g-sig" min="20" max="600" step="10" value="200"><output id="g-sigo"></output></label>
+      <label class="sl">차 대수 n <input type="range" id="g-n" min="15" max="400" step="5" value="80"><output id="g-no"></output></label>
+      <div class="row" style="margin-top:6px">
+        <button class="b" id="g-new">데이터 다시 뽑기</button>
+        <button class="b" id="g-many">100번 다시 뽑기</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>두 모델 견주기</h2>
+      <table class="t">
+        <thead><tr><th></th><th>진짜</th><th>나이만</th><th>나이 + 거리</th></tr></thead>
+        <tbody>
+          <tr><td>절편 b₀</td><td id="t-b0">3000</td><td id="t-a0"></td><td id="t-c0"></td></tr>
+          <tr><td>나이 b₁</td><td id="t-b1"></td><td id="t-a1"></td><td id="t-c1"></td></tr>
+          <tr><td>거리 b₂</td><td id="t-b2"></td><td>–</td><td id="t-c2"></td></tr>
+          <tr><td>R²</td><td>–</td><td id="t-ar2"></td><td id="t-cr2"></td></tr>
+          <tr><td>SSE</td><td>–</td><td id="t-asse"></td><td id="t-csse"></td></tr>
+        </tbody>
+      </table>
+      <div class="stats"><div class="stat"><b>VIF (두 변수 모두)</b><span id="t-vif"></span></div><div class="stat"><b>두 변수의 표본 상관</b><span id="t-r12"></span></div></div>
+      <p class="read" id="g-read"></p>
+    </div>
+    <div class="box"><strong>해 볼 것</strong>상관을 0으로 두면 "나이만" 모델의 계수도 진짜에 가깝습니다. 상관을 0.95 넘게 올리고 "100번 다시 뽑기"를 누르면, 나이 + 거리 모델의 계수가 넓게 흔들립니다. 이것이 다중공선성이고, VIF가 그 흔들림의 배수입니다.</div>
+  </div>
+</section>
+
+<!-- ③ 경사하강법 -->
+<section class="panel" id="p-gd" hidden>
+  <div class="stage">
+    <div class="two">
+      <svg id="gv1" viewBox="0 0 400 320" aria-label="데이터와 지금의 직선"></svg>
+      <canvas id="gc" width="800" height="640" aria-label="손실 지형과 걸어온 길"></canvas>
+    </div>
+    <svg id="gv2" viewBox="0 0 820 160" aria-label="걸음에 따른 손실"></svg>
+    <p class="hint">왼쪽: ① 탭의 점들과 지금의 직선(초록), 최소제곱 직선(빨강 점선). 오른쪽: 기울기 w와 절편 b에 따른 손실 지형. 어두울수록 손실이 작고, 선이 걸어온 길입니다. 아래: 걸음에 따른 손실(로그 눈금).</p>
+  </div>
+  <div class="side">
+    <div class="card">
+      <h2>w ← w − η · ∂L/∂w</h2>
+      <label class="sl">학습률 η <input type="range" id="d-lr" min="-3.3" max="-1.1" step="0.05" value="-2"><output id="d-lro"></output></label>
+      <div class="row" style="margin-top:6px">
+        <button class="b" id="d-1">1걸음</button>
+        <button class="b" id="d-10">10걸음</button>
+        <button class="b" id="d-100">100걸음</button>
+        <button class="b" id="d-run">자동으로 걷기</button>
+        <button class="b" id="d-reset">처음(w = 0, b = 0)으로</button>
+      </div>
+      <div class="stats">
+        <div class="stat"><b>걸음 수</b><span id="d-step">0</span></div>
+        <div class="stat"><b>손실 L (잔차 제곱 평균)</b><span id="d-loss"></span></div>
+        <div class="stat"><b>지금 w, b</b><span id="d-wb"></span></div>
+        <div class="stat"><b>최소제곱 답 w, b</b><span id="d-ls"></span></div>
+      </div>
+      <p class="read" id="d-read"></p>
+    </div>
+    <div class="box"><strong>해 볼 것</strong>책 예제 8-1의 점으로 학습률 0.01이면 3,000걸음 안에 공식의 답(3.75, 53.5)에 닿습니다. 학습률을 0.05 근처로 올리면 골짜기를 넘어 튕겨 나가고, 0.001로 내리면 아주 느리게 갑니다. 점은 ① 탭에서 바꿀 수 있습니다.</div>
+  </div>
+</section>
+
+<!-- ④ 평균으로의 회귀 -->
+<section class="panel" id="p-mean" hidden>
+  <div class="stage">
+    <svg id="rv" viewBox="0 0 640 460" aria-label="아버지와 아들의 키"></svg>
+    <div class="legend"><span><i style="background:var(--line)"></i>회귀선(기울기 r)</span><span><i style="background:var(--muted)"></i>아들 = 아버지(기울기 1)</span><span><i style="background:var(--pt)"></i>키 큰 아버지 10%와 아들</span></div>
+  </div>
+  <div class="side">
+    <div class="card">
+      <h2>키는 평균으로 돌아간다</h2>
+      <p class="read" style="margin-top:0">아버지와 아들의 키를 평균 175cm, 표준편차 6cm로 뽑고, 두 키의 상관계수 r만 바꿉니다. 골턴의 실제 데이터는 r = 0.39였습니다.</p>
+      <label class="sl">상관계수 r <input type="range" id="r-r" min="0" max="1" step="0.01" value="0.39"><output id="r-ro"></output></label>
+      <div class="row" style="margin-top:6px"><button class="b" id="r-new">다시 뽑기 (500쌍)</button></div>
+      <div class="stats">
+        <div class="stat"><b>키 큰 아버지 10% 평균</b><span id="r-f"></span></div>
+        <div class="stat"><b>그 아들의 평균</b><span id="r-s"></span></div>
+        <div class="stat"><b>평균보다 큰 만큼 (아버지)</b><span id="r-df"></span></div>
+        <div class="stat"><b>평균보다 큰 만큼 (아들)</b><span id="r-ds"></span></div>
+      </div>
+      <p class="read" id="r-read"></p>
+    </div>
+    <div class="box"><strong>식 8-5로 읽기</strong>(ŷ − ȳ) ÷ s_y = r × (x − x̄) ÷ sₓ. 아버지가 평균보다 표준편차 몇 개만큼 크든, 아들의 예측은 그 r배만큼만 큽니다. r이 1이면 그대로 물려받고, 0이면 모두 평균으로 돌아갑니다.</div>
+  </div>
+</section>
+</div>
+
+<script>
+(() => {
+"use strict";
+const $ = id => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmt = (v, d = 2) => (v === null || !isFinite(v)) ? "–" : v.toLocaleString("ko-KR", {minimumFractionDigits: d, maximumFractionDigits: d});
+const sgn = (v, d = 2) => (v < 0 ? "− " : "+ ") + fmt(Math.abs(v), d);
+function el(tag, attrs = {}, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+// 정규분포 난수 (박스-뮬러)
+function randn() { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+// t 분포 97.5% 분위수 근사
+function t975(df) {
+  const tab = {1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571};
+  if (tab[df]) return tab[df];
+  const z = 1.959964, z3 = z ** 3, z5 = z ** 5, z7 = z ** 7;
+  return z + (z3 + z) / (4 * df) + (5 * z5 + 16 * z3 + 3 * z) / (96 * df * df) + (3 * z7 + 19 * z5 + 17 * z3 - 15 * z) / (384 * df ** 3);
+}
+// 단순회귀
+function fit1(xs, ys) {
+  const n = xs.length; if (n < 2) return null;
+  const mx = xs.reduce((a, b) => a + b, 0) / n, my = ys.reduce((a, b) => a + b, 0) / n;
+  let sxy = 0, sxx = 0, syy = 0;
+  for (let i = 0; i < n; i++) { sxy += (xs[i] - mx) * (ys[i] - my); sxx += (xs[i] - mx) ** 2; syy += (ys[i] - my) ** 2; }
+  if (sxx < 1e-12) return {n, mx, my, sxx, sxy, syy, b: NaN, a: NaN};
+  const b = sxy / sxx, a = my - b * mx;
+  let sse = 0, rsum = 0;
+  for (let i = 0; i < n; i++) { const r = ys[i] - (a + b * xs[i]); sse += r * r; rsum += r; }
+  const r = syy > 0 ? sxy / Math.sqrt(sxx * syy) : NaN;
+  return {n, mx, my, sxx, sxy, syy, b, a, sse, sst: syy, r2: syy > 0 ? 1 - sse / syy : NaN, r, rsum};
+}
+// 최소제곱(정규방정식, 열 k개)
+function ols(X, y) {
+  const k = X[0].length, n = X.length, A = Array.from({length: k}, () => Array(k + 1).fill(0));
+  for (let i = 0; i < n; i++) for (let p = 0; p < k; p++) { for (let q = 0; q < k; q++) A[p][q] += X[i][p] * X[i][q]; A[p][k] += X[i][p] * y[i]; }
+  for (let c = 0; c < k; c++) {
+    let piv = c; for (let r = c + 1; r < k; r++) if (Math.abs(A[r][c]) > Math.abs(A[piv][c])) piv = r;
+    [A[c], A[piv]] = [A[piv], A[c]];
+    for (let r = 0; r < k; r++) if (r !== c) { const f = A[r][c] / A[c][c]; for (let q = c; q <= k; q++) A[r][q] -= f * A[c][q]; }
+  }
+  const beta = A.map((row, i) => row[k] / row[i]);
+  const my = y.reduce((a, b) => a + b, 0) / n;
+  let sse = 0, sst = 0;
+  for (let i = 0; i < n; i++) { const p = X[i].reduce((s, v, j) => s + v * beta[j], 0); sse += (y[i] - p) ** 2; sst += (y[i] - my) ** 2; }
+  return {beta, sse, sst, r2: 1 - sse / sst};
+}
+
+// 축 그리기 도우미
+function axes(svg, box, xr, yr, xt, yt, xl, yl) {
+  const [L, T, W, H] = box;
+  const X = v => L + (v - xr[0]) / (xr[1] - xr[0]) * W, Y = v => T + H - (v - yr[0]) / (yr[1] - yr[0]) * H;
+  const g = el("g", {}, svg);
+  el("rect", {x: L, y: T, width: W, height: H, fill: "var(--paper)"}, g);
+  xt.forEach(v => { el("line", {x1: X(v), x2: X(v), y1: T, y2: T + H, stroke: "var(--grid)", "stroke-width": 1}, g);
+    const t = el("text", {x: X(v), y: T + H + 16, "text-anchor": "middle", "font-size": 11, fill: "var(--muted)"}, g); t.textContent = v; });
+  yt.forEach(v => { el("line", {x1: L, x2: L + W, y1: Y(v), y2: Y(v), stroke: "var(--grid)", "stroke-width": 1}, g);
+    const t = el("text", {x: L - 6, y: Y(v) + 4, "text-anchor": "end", "font-size": 11, fill: "var(--muted)"}, g); t.textContent = v; });
+  el("rect", {x: L, y: T, width: W, height: H, fill: "none", stroke: "var(--grid2)"}, g);
+  if (xl) { const t = el("text", {x: L + W / 2, y: T + H + 34, "text-anchor": "middle", "font-size": 12, fill: "var(--ink)"}, g); t.textContent = xl; }
+  if (yl) { const t = el("text", {x: 14, y: T + H / 2, "text-anchor": "middle", "font-size": 12, fill: "var(--ink)", transform: `rotate(-90 14 ${T + H / 2})`}, g); t.textContent = yl; }
+  return {X, Y, g};
+}
+function clip(svg, id, box) {
+  const d = el("defs", {}, svg), c = el("clipPath", {id}, d);
+  el("rect", {x: box[0], y: box[1], width: box[2], height: box[3]}, c);
+  return `url(#${id})`;
+}
+
+/* ───────── 탭 ───────── */
+const tabs = [...document.querySelectorAll(".tab")];
+function show(btn) {
+  tabs.forEach(t => { const on = t === btn; t.setAttribute("aria-selected", on); $(t.dataset.p).hidden = !on; });
+  if (btn.dataset.p === "p-gd") gdDraw(true);
+  if (btn.dataset.p === "p-multi") mDraw();
+  if (btn.dataset.p === "p-mean") rDraw();
+}
+tabs.forEach(t => t.addEventListener("click", () => show(t)));
+
+/* ───────── ① 단순회귀 ───────── */
+const SB = [56, 16, 560, 390], SX = [0, 10], SY = [0, 100];
+const BOOK = [[2, 60], [4, 70], [6, 75], [8, 85], [10, 90]];
+let pts = BOOK.map(p => p.slice());
+let delMode = false, drag = -1, moved = false, lastTap = {i: -1, t: 0};
+const sv = $("sv");
+const sX = v => SB[0] + (v - SX[0]) / (SX[1] - SX[0]) * SB[2], sY = v => SB[1] + SB[3] - (v - SY[0]) / (SY[1] - SY[0]) * SB[3];
+const iX = px => SX[0] + (px - SB[0]) / SB[2] * (SX[1] - SX[0]), iY = py => SY[0] + (SB[1] + SB[3] - py) / SB[3] * (SY[1] - SY[0]);
+function svgPt(evt, svg) { const p = svg.createSVGPoint(); p.x = evt.clientX; p.y = evt.clientY; return p.matrixTransform(svg.getScreenCTM().inverse()); }
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+
+function sDraw() {
+  sv.textContent = "";
+  axes(sv, SB, SX, SY, [0, 2, 4, 6, 8, 10], [0, 20, 40, 60, 80, 100], "x (예: 공부시간)", "y (예: 점수)");
+  const cp = clip(sv, "sclip", SB);
+  const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+  const f = fit1(xs, ys), ok = f && isFinite(f.b);
+  const layer = el("g", {"clip-path": cp}, sv);
+  const showMine = $("c-mine").checked, mb = +$("m-b").value, ma = +$("m-a").value;
+  if (ok && $("c-band").checked && f.n > 2) {
+    const s = Math.sqrt(f.sse / (f.n - 2)), t = t975(f.n - 2); let up = "", lo = "";
+    for (let i = 0; i <= 60; i++) { const x = SX[0] + i / 60 * (SX[1] - SX[0]); const h = t * s * Math.sqrt(1 + 1 / f.n + (x - f.mx) ** 2 / f.sxx);
+      up += `${i ? "L" : "M"}${sX(x)},${sY(f.a + f.b * x + h)}`; lo = `L${sX(x)},${sY(f.a + f.b * x - h)}` + lo; }
+    el("path", {d: up + lo.replace(/^L/, "L") + "Z", fill: "var(--band)"}, layer);
+  }
+  if (ok && $("c-mean").checked) {
+    el("line", {x1: sX(SX[0]), x2: sX(SX[1]), y1: sY(f.my), y2: sY(f.my), stroke: "var(--mean)", "stroke-width": 2, "stroke-dasharray": "6 4"}, layer);
+    pts.forEach(p => el("line", {x1: sX(p[0]) - 4, x2: sX(p[0]) - 4, y1: sY(p[1]), y2: sY(f.my), stroke: "var(--mean)", "stroke-width": 1.5, opacity: .7}, layer));
+  }
+  if (ok) {
+    pts.forEach(p => { const yh = f.a + f.b * p[0], r = p[1] - yh;
+      if ($("c-sq").checked) { const side = Math.abs(sY(p[1]) - sY(yh)); el("rect", {x: sX(p[0]), y: Math.min(sY(p[1]), sY(yh)), width: side, height: side, fill: "var(--sq)", stroke: "var(--line)", "stroke-width": .6}, layer); }
+      if ($("c-res").checked) el("line", {x1: sX(p[0]), x2: sX(p[0]), y1: sY(p[1]), y2: sY(yh), stroke: "var(--line)", "stroke-width": 1.5, "stroke-dasharray": r ? "3 3" : "0"}, layer);
+    });
+    el("line", {x1: sX(SX[0]), x2: sX(SX[1]), y1: sY(f.a + f.b * SX[0]), y2: sY(f.a + f.b * SX[1]), stroke: "var(--line)", "stroke-width": 3}, layer);
+  }
+  if (showMine) el("line", {x1: sX(SX[0]), x2: sX(SX[1]), y1: sY(ma + mb * SX[0]), y2: sY(ma + mb * SX[1]), stroke: "var(--mine)", "stroke-width": 2.5, "stroke-dasharray": "8 5"}, layer);
+  if (ok) el("circle", {cx: sX(f.mx), cy: sY(f.my), r: 5, fill: "none", stroke: "var(--mean)", "stroke-width": 2}, layer);
+  pts.forEach((p, i) => el("circle", {cx: sX(p[0]), cy: sY(p[1]), r: 7, fill: "var(--pt)", stroke: "var(--paper)", "stroke-width": 2, "data-i": i, style: "cursor:" + (delMode ? "not-allowed" : "grab")}, sv));
+  sStats(f, ok, showMine, ma, mb, xs, ys);
+}
+function sStats(f, ok, showMine, ma, mb, xs, ys) {
+  $("s-n").textContent = pts.length;
+  if (!ok) {
+    ["s-r", "s-sse", "s-sst", "s-r2", "s-rs"].forEach(k => $(k).textContent = "–");
+    $("s-eq").textContent = "ŷ = –";
+    $("s-read").textContent = pts.length < 2 ? "점을 두 개 이상 찍으면 회귀선이 나타납니다." : "x 값이 모두 같으면 기울기를 정할 수 없습니다. x가 다른 점을 하나 더 찍어 보세요.";
+    $("s-calc").textContent = ""; $("m-read").textContent = ""; return;
+  }
+  $("s-eq").textContent = `ŷ = ${fmt(f.a, 2)} ${sgn(f.b, 3)}x`;
+  $("s-r").textContent = fmt(f.r, 3); $("s-sse").textContent = fmt(f.sse, 2); $("s-sst").textContent = fmt(f.sst, 2);
+  $("s-r2").textContent = fmt(f.r2, 3); $("s-rs").textContent = fmt(Math.abs(f.rsum) < 1e-9 ? 0 : f.rsum, 2);
+  const pct = Math.round(f.r2 * 1000) / 10;
+  $("s-read").textContent = `x가 1 늘 때 y는 평균 ${fmt(f.b, 2)}만큼 ${f.b >= 0 ? "늡니다" : "줄어듭니다"}. 평균선 하나로 찍었을 때의 흩어짐(SST ${fmt(f.sst, 1)}) 가운데 직선이 설명한 몫이 ${pct}%(R²)이고, 남은 몫이 SSE ${fmt(f.sse, 1)}입니다. 회귀선은 늘 평균점(빈 원)을 지나고, 잔차의 합은 0입니다.`;
+  const rows = pts.map((p, i) => { const yh = f.a + f.b * p[0]; return `${String(i + 1).padStart(2)}  x=${fmt(p[0], 2).padStart(6)}  y=${fmt(p[1], 2).padStart(7)}  ŷ=${fmt(yh, 2).padStart(7)}  잔차=${fmt(p[1] - yh, 2).padStart(7)}`; });
+  $("s-calc").textContent =
+`x̄ = ${fmt(f.mx, 3)},  ȳ = ${fmt(f.my, 3)}
+Σ(x−x̄)(y−ȳ) = ${fmt(f.sxy, 3)}   Σ(x−x̄)² = ${fmt(f.sxx, 3)}
+기울기 b = ${fmt(f.sxy, 3)} ÷ ${fmt(f.sxx, 3)} = ${fmt(f.b, 4)}      (식 8-3)
+절편  a = ȳ − b·x̄ = ${fmt(f.a, 4)}
+SSE = Σ(y−ŷ)² = ${fmt(f.sse, 3)}                    (식 8-2)
+SST = Σ(y−ȳ)² = ${fmt(f.sst, 3)}
+R² = 1 − SSE ÷ SST = ${fmt(f.r2, 4)}                (식 8-4)
+
+${rows.join("\n")}`;
+  if (showMine) {
+    let mse = 0; for (let i = 0; i < xs.length; i++) mse += (ys[i] - (ma + mb * xs[i])) ** 2;
+    const diff = mse - f.sse;
+    $("m-read").innerHTML = `내 직선 ŷ = ${fmt(ma, 1)} ${sgn(mb, 2)}x 의 SSE는 <b>${fmt(mse, 1)}</b>, 최소제곱 직선은 <b>${fmt(f.sse, 1)}</b>입니다. ` +
+      (diff < 0.05 * Math.max(1, f.sse) ? "거의 같아졌습니다. 최소제곱 직선을 찾았습니다." : `${fmt(diff, 1)}만큼 더 큽니다. 어떤 직선도 최소제곱 직선보다 SSE가 작을 수 없습니다.`);
+  }
+}
+sv.addEventListener("pointerdown", e => {
+  const p = svgPt(e, sv), t = e.target, i = t.dataset ? t.dataset.i : undefined;
+  if (i !== undefined) {
+    const k = +i, now = Date.now();
+    if (delMode || (lastTap.i === k && now - lastTap.t < 350)) { pts.splice(k, 1); lastTap = {i: -1, t: 0}; sDraw(); gdReset(); return; }
+    lastTap = {i: k, t: now}; drag = k; moved = false; sv.setPointerCapture(e.pointerId); return;
+  }
+  if (delMode) return;
+  if (p.x < SB[0] || p.x > SB[0] + SB[2] || p.y < SB[1] || p.y > SB[1] + SB[3]) return;
+  pts.push([Math.round(iX(p.x) * 10) / 10, Math.round(iY(p.y) * 10) / 10]); sDraw(); gdReset();
+});
+sv.addEventListener("pointermove", e => {
+  if (drag < 0) return; const p = svgPt(e, sv); moved = true;
+  pts[drag] = [Math.round(clamp(iX(p.x), SX[0], SX[1]) * 10) / 10, Math.round(clamp(iY(p.y), SY[0], SY[1]) * 10) / 10]; sDraw();
+});
+const endDrag = () => { if (drag >= 0 && moved) gdReset(); drag = -1; };
+sv.addEventListener("pointerup", endDrag); sv.addEventListener("pointercancel", endDrag);
+$("s-book").onclick = () => { pts = BOOK.map(p => p.slice()); sDraw(); gdReset(); };
+$("s-rand").onclick = () => { const b = 2 + Math.random() * 6, a = 10 + Math.random() * 30; pts = [];
+  for (let i = 0; i < 20; i++) { const x = 0.5 + Math.random() * 9; pts.push([Math.round(x * 10) / 10, Math.round(clamp(a + b * x + randn() * 9, 1, 99) * 10) / 10]); } sDraw(); gdReset(); };
+$("s-out").onclick = () => { pts.push([9.5, 15]); sDraw(); gdReset(); };
+$("s-clear").onclick = () => { pts = []; sDraw(); gdReset(); };
+$("s-del").onclick = () => { delMode = !delMode; $("s-del").classList.toggle("on", delMode); $("s-del").textContent = delMode ? "지우기 모드 끄기" : "지우기 모드"; sDraw(); };
+["c-res", "c-sq", "c-mean", "c-band"].forEach(k => $(k).addEventListener("change", sDraw));
+$("c-mine").addEventListener("change", () => { $("mine-box").hidden = !$("c-mine").checked; sDraw(); });
+["m-b", "m-a"].forEach(k => $(k).addEventListener("input", () => { $(k + "o").textContent = (+$(k).value).toFixed(k === "m-b" ? 2 : 1); sDraw(); }));
+$("m-bo").textContent = "2.00"; $("m-ao").textContent = "60.0";
+
+/* ───────── ② 다중회귀 ───────── */
+const g = {};
+function mGen() {
+  const n = +$("g-n").value, rho = +$("g-rho").value, sig = +$("g-sig").value, b1 = +$("g-b1").value, b2 = +$("g-b2").value;
+  const rows = [];
+  for (let i = 0; i < n; i++) { const z1 = randn(), z2 = randn();
+    const age = clamp(6 + 2.5 * z1, 0.5, 15), km = clamp(9 + 4.5 * (rho * z1 + Math.sqrt(1 - rho * rho) * z2), 0.2, 30);
+    rows.push({age, km, y: 3000 + b1 * age + b2 * km + sig * randn()}); }
+  return rows;
+}
+function mFit(rows) {
+  const y = rows.map(r => r.y);
+  const A = ols(rows.map(r => [1, r.age]), y), C = ols(rows.map(r => [1, r.age, r.km]), y);
+  const f = fit1(rows.map(r => r.age), rows.map(r => r.km));
+  return {A, C, r12: f.r, vif: 1 / (1 - f.r * f.r)};
+}
+function mNew() { g.rows = mGen(); g.fit = mFit(g.rows); g.sims = []; }
+function mMany() { const s = []; for (let k = 0; k < 100; k++) { const f = mFit(mGen()); s.push({a: f.A.beta[1], c: f.C.beta[1]}); } g.sims = s; }
+function mDraw() {
+  if ($("p-multi").hidden) return;
+  const {rows, fit} = g, b1 = +$("g-b1").value, b2 = +$("g-b2").value;
+  // 왼쪽: 나이 vs 값
+  const v1 = $("mv1"); v1.textContent = "";
+  const ys = rows.map(r => r.y), ylo = Math.floor(Math.min(...ys, 0) / 500) * 500, yhi = Math.ceil(Math.max(...ys, 3000) / 500) * 500;
+  const yt = []; for (let v = ylo; v <= yhi; v += (yhi - ylo > 3000 ? 1000 : 500)) yt.push(v);
+  const B1 = [58, 12, 326, 256], ax = axes(v1, B1, [0, 15], [ylo, yhi], [0, 3, 6, 9, 12, 15], yt, "차 나이(년)", "값(만 원)");
+  const cp = clip(v1, "m1clip", B1), lay = el("g", {"clip-path": cp}, v1);
+  rows.forEach(r => el("circle", {cx: ax.X(r.age), cy: ax.Y(r.y), r: 3.4, fill: "var(--pt)", "fill-opacity": (0.15 + 0.85 * clamp(r.km / 20, 0, 1)).toFixed(2)}, lay));
+  const A = fit.A.beta; el("line", {x1: ax.X(0), x2: ax.X(15), y1: ax.Y(A[0]), y2: ax.Y(A[0] + A[1] * 15), stroke: "var(--line)", "stroke-width": 2.5}, lay);
+  const mk = rows.reduce((s, r) => s + r.km, 0) / rows.length, C = fit.C.beta;
+  el("line", {x1: ax.X(0), x2: ax.X(15), y1: ax.Y(C[0] + C[2] * mk), y2: ax.Y(C[0] + C[1] * 15 + C[2] * mk), stroke: "var(--mine)", "stroke-width": 2.5, "stroke-dasharray": "7 4"}, lay);
+  const lg = el("text", {x: B1[0] + 8, y: B1[1] + 16, "font-size": 11, fill: "var(--line)"}, v1); lg.textContent = "나이만 쓴 직선";
+  const lg2 = el("text", {x: B1[0] + 8, y: B1[1] + 31, "font-size": 11, fill: "var(--mine)"}, v1); lg2.textContent = "다중회귀(거리는 평균에 고정)";
+  // 오른쪽: 실제 vs 예측
+  const v2 = $("mv2"); v2.textContent = "";
+  const B2 = [58, 12, 326, 256], ax2 = axes(v2, B2, [ylo, yhi], [ylo, yhi], yt.filter((_, i) => i % 2 === 0), yt, "예측값(만 원)", "실제값(만 원)");
+  const lay2 = el("g", {"clip-path": clip(v2, "m2clip", B2)}, v2);
+  el("line", {x1: ax2.X(ylo), y1: ax2.Y(ylo), x2: ax2.X(yhi), y2: ax2.Y(yhi), stroke: "var(--muted)", "stroke-dasharray": "4 4"}, lay2);
+  rows.forEach(r => el("circle", {cx: ax2.X(C[0] + C[1] * r.age + C[2] * r.km), cy: ax2.Y(r.y), r: 3.2, fill: "var(--line)", "fill-opacity": .55}, lay2));
+  // 표
+  $("t-b1").textContent = fmt(b1, 0); $("t-b2").textContent = fmt(b2, 0);
+  $("t-a0").textContent = fmt(A[0], 0); $("t-a1").textContent = fmt(A[1], 1);
+  $("t-c0").textContent = fmt(C[0], 0); $("t-c1").textContent = fmt(C[1], 1); $("t-c2").textContent = fmt(C[2], 1);
+  $("t-ar2").textContent = fmt(fit.A.r2, 3); $("t-cr2").textContent = fmt(fit.C.r2, 3);
+  $("t-asse").textContent = Math.round(fit.A.sse).toLocaleString("ko-KR"); $("t-csse").textContent = Math.round(fit.C.sse).toLocaleString("ko-KR");
+  $("t-vif").textContent = fmt(fit.vif, 1); $("t-r12").textContent = fmt(fit.r12, 2);
+  const bias = A[1] - b1;
+  $("g-read").textContent = `"나이만" 모델의 나이 계수는 ${fmt(A[1], 1)}로 진짜(${b1})보다 ${fmt(Math.abs(bias), 1)}만큼 ${bias < 0 ? "더 음수" : "덜 음수"}입니다. ` +
+    (Math.abs(fit.r12) > 0.3 ? "오래된 차일수록 많이 달렸으니, 빠진 주행거리의 몫까지 나이가 떠안은 것입니다. 거리를 함께 넣으면 \"주행거리가 같다면\" 나이의 효과만 남습니다. " : "두 변수가 거의 상관없으니 하나를 빼도 계수가 크게 바뀌지 않습니다. ") +
+    (fit.vif >= 10 ? `VIF ${fmt(fit.vif, 1)}: 두 변수가 같은 말을 많이 해서 계수가 크게 흔들립니다.` : `VIF ${fmt(fit.vif, 1)}: 흔들림은 심하지 않습니다(흔히 10을 넘으면 심하다고 봅니다).`);
+  // 아래: 다시 뽑은 계수
+  const v3 = $("mv3"); v3.textContent = "";
+  const sims = g.sims, all = sims.flatMap(s => [s.a, s.c]).concat([b1, A[1], C[1]]);
+  let lo = Math.min(...all), hi = Math.max(...all); const pad = (hi - lo) * 0.08 + 5; lo -= pad; hi += pad;
+  const step = Math.pow(10, Math.floor(Math.log10((hi - lo) / 5))); const tick = [];
+  for (let v = Math.ceil(lo / step) * step; v <= hi; v += step * (((hi - lo) / step) > 10 ? 2 : 1)) tick.push(Math.round(v));
+  const B3 = [110, 10, 690, 120], X3 = v => B3[0] + (v - lo) / (hi - lo) * B3[2];
+  el("rect", {x: B3[0], y: B3[1], width: B3[2], height: B3[3], fill: "var(--paper)", stroke: "var(--grid2)"}, v3);
+  tick.forEach(v => { el("line", {x1: X3(v), x2: X3(v), y1: B3[1], y2: B3[1] + B3[3], stroke: "var(--grid)"}, v3); const t = el("text", {x: X3(v), y: B3[1] + B3[3] + 15, "text-anchor": "middle", "font-size": 11, fill: "var(--muted)"}, v3); t.textContent = v; });
+  const rowY = [B3[1] + 35, B3[1] + 88];
+  [["나이만", "a", "var(--line)"], ["나이 + 거리", "c", "var(--mine)"]].forEach(([name, key, col], j) => {
+    const t = el("text", {x: B3[0] - 8, y: rowY[j] + 4, "text-anchor": "end", "font-size": 12, fill: "var(--ink)"}, v3); t.textContent = name;
+    const list = sims.length ? sims.map(s => s[key]) : [key === "a" ? A[1] : C[1]];
+    list.forEach((v, k) => el("circle", {cx: X3(v), cy: rowY[j] + ((k * 7) % 21) - 10, r: 3.2, fill: col, "fill-opacity": .6}, v3));
+  });
+  el("line", {x1: X3(b1), x2: X3(b1), y1: B3[1], y2: B3[1] + B3[3], stroke: "var(--ink)", "stroke-width": 2}, v3);
+  const tt = el("text", {x: X3(b1) + 4, y: B3[1] + 12, "font-size": 11, fill: "var(--ink)"}, v3); tt.textContent = `진짜 b₁ = ${b1}`;
+  const cap = el("text", {x: 4, y: 160, "font-size": 11, fill: "var(--muted)"}, v3);
+  cap.textContent = sims.length ? `100번 다시 뽑은 나이 계수. 나이 + 거리 모델의 표준편차 ${fmt(sd(sims.map(s => s.c)), 1)}, 나이만 모델의 평균 ${fmt(mean(sims.map(s => s.a)), 1)}` : "\"100번 다시 뽑기\"를 누르면 계수가 흔들리는 폭이 보입니다.";
+}
+const mean = a => a.reduce((s, v) => s + v, 0) / a.length;
+const sd = a => { const m = mean(a); return Math.sqrt(a.reduce((s, v) => s + (v - m) ** 2, 0) / (a.length - 1)); };
+function mSync() { $("g-b1o").textContent = $("g-b1").value; $("g-b2o").textContent = $("g-b2").value; $("g-rhoo").textContent = (+$("g-rho").value).toFixed(2); $("g-sigo").textContent = $("g-sig").value; $("g-no").textContent = $("g-n").value; }
+["g-b1", "g-b2", "g-rho", "g-sig", "g-n"].forEach(k => $(k).addEventListener("input", () => { mSync(); mNew(); mDraw(); }));
+$("g-new").onclick = () => { mNew(); mDraw(); };
+$("g-many").onclick = () => { mMany(); mDraw(); };
+$("t-b0").textContent = "3,000";
+
+/* ───────── ③ 경사하강법 ───────── */
+const gd = {w: 0, b: 0, step: 0, hist: [], path: [], timer: null};
+const WR = [-4, 12], BR = [-20, 110];
+function lossAt(w, b) { let s = 0; for (const p of pts) s += (b + w * p[0] - p[1]) ** 2; return pts.length ? s / pts.length : NaN; }
+function gdReset() { gd.w = 0; gd.b = 0; gd.step = 0; gd.hist = [lossAt(0, 0)]; gd.path = [[0, 0]]; gd.field = null; stopRun(); if (!$("p-gd").hidden) gdDraw(true); }
+function gdStep(k) {
+  const lr = Math.pow(10, +$("d-lr").value), n = pts.length; if (n < 2) return;
+  for (let s = 0; s < k; s++) {
+    let gw = 0, gb = 0; for (const p of pts) { const e = gd.b + gd.w * p[0] - p[1]; gw += 2 * e * p[0] / n; gb += 2 * e / n; }
+    gd.w -= lr * gw; gd.b -= lr * gb; gd.step++;
+    const L = lossAt(gd.w, gd.b); gd.hist.push(L);
+    if (gd.step < 200 || gd.step % 5 === 0) gd.path.push([gd.w, gd.b]);
+    if (!isFinite(L) || L > 1e12) { stopRun(); break; }
+  }
+  gdDraw(false);
+}
+function stopRun() { if (gd.timer) { cancelAnimationFrame(gd.timer); gd.timer = null; } $("d-run").textContent = "자동으로 걷기"; $("d-run").classList.remove("on"); }
+function run() { gdStep(8); if (gd.step < 6000 && isFinite(gd.hist[gd.hist.length - 1])) gd.timer = requestAnimationFrame(run); else stopRun(); }
+$("d-1").onclick = () => gdStep(1); $("d-10").onclick = () => gdStep(10); $("d-100").onclick = () => gdStep(100);
+$("d-run").onclick = () => { if (gd.timer) { stopRun(); return; } $("d-run").textContent = "멈추기"; $("d-run").classList.add("on"); run(); };
+$("d-reset").onclick = gdReset;
+$("d-lr").addEventListener("input", () => { $("d-lro").textContent = Math.pow(10, +$("d-lr").value).toFixed(4); });
+$("d-lro").textContent = "0.0100";
+function gdDraw(full) {
+  if ($("p-gd").hidden) return;
+  const f = fit1(pts.map(p => p[0]), pts.map(p => p[1])), ok = f && isFinite(f.b);
+  // 데이터와 직선
+  const v = $("gv1"); v.textContent = "";
+  const B = [50, 12, 334, 256], ax = axes(v, B, SX, SY, [0, 2, 4, 6, 8, 10], [0, 20, 40, 60, 80, 100], "x", "y");
+  const lay = el("g", {"clip-path": clip(v, "gclip", B)}, v);
+  if (ok) el("line", {x1: ax.X(0), x2: ax.X(10), y1: ax.Y(f.a), y2: ax.Y(f.a + f.b * 10), stroke: "var(--line)", "stroke-width": 2, "stroke-dasharray": "6 4"}, lay);
+  el("line", {x1: ax.X(0), x2: ax.X(10), y1: ax.Y(gd.b), y2: ax.Y(gd.b + gd.w * 10), stroke: "var(--mine)", "stroke-width": 3}, lay);
+  pts.forEach(p => el("circle", {cx: ax.X(p[0]), cy: ax.Y(p[1]), r: 4.5, fill: "var(--pt)"}, lay));
+  // 손실 지형
+  const cv = $("gc"), c = cv.getContext("2d"), W = cv.width, H = cv.height, m = {l: 90, t: 20, r: 20, b: 80};
+  const PW = W - m.l - m.r, PH = H - m.t - m.b;
+  const toX = w => m.l + (w - WR[0]) / (WR[1] - WR[0]) * PW, toY = b => m.t + PH - (b - BR[0]) / (BR[1] - BR[0]) * PH;
+  if (full || !gd.field) {
+    const N = 120, vals = []; let mn = Infinity, mx = -Infinity;
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const L = Math.log10(1 + lossAt(WR[0] + (i + .5) / N * (WR[1] - WR[0]), BR[0] + (j + .5) / N * (BR[1] - BR[0]))); vals.push(L); mn = Math.min(mn, L); mx = Math.max(mx, L); }
+    gd.field = {N, vals, mn, mx};
+  }
+  c.clearRect(0, 0, W, H);
+  c.fillStyle = css("--paper"); c.fillRect(0, 0, W, H);
+  const {N, vals, mn, mx} = gd.field, cw = PW / N, ch = PH / N, dark = matchMedia("(prefers-color-scheme: dark)").matches && document.documentElement.dataset.theme !== "light" || document.documentElement.dataset.theme === "dark";
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const tnorm = (vals[j * N + i] - mn) / ((mx - mn) || 1), band = Math.floor(tnorm * 14) % 2;
+    const l = dark ? 12 + tnorm * 30 + band * 3 : 32 + tnorm * 62 - band * 3;
+    c.fillStyle = `hsl(205 35% ${l}%)`; c.fillRect(m.l + i * cw, m.t + PH - (j + 1) * ch, cw + 1, ch + 1);
+  }
+  c.strokeStyle = css("--grid2"); c.lineWidth = 2; c.strokeRect(m.l, m.t, PW, PH);
+  c.fillStyle = css("--muted"); c.font = "22px " + css("--f-body"); c.textAlign = "center";
+  [-4, 0, 4, 8, 12].forEach(w => c.fillText(w, toX(w), m.t + PH + 28));
+  c.fillText("기울기 w", m.l + PW / 2, H - 18);
+  c.textAlign = "right"; [0, 25, 50, 75, 100].forEach(b => c.fillText(b, m.l - 10, toY(b) + 7));
+  c.save(); c.translate(26, m.t + PH / 2); c.rotate(-Math.PI / 2); c.textAlign = "center"; c.fillText("절편 b", 0, 0); c.restore();
+  c.save(); c.beginPath(); c.rect(m.l, m.t, PW, PH); c.clip();
+  if (ok) { c.strokeStyle = css("--line"); c.lineWidth = 4; c.beginPath(); c.arc(toX(f.b), toY(f.a), 11, 0, 7); c.stroke(); }
+  c.strokeStyle = css("--mine"); c.lineWidth = 3.5; c.beginPath();
+  gd.path.forEach(([w, b], i) => { const x = toX(clamp(w, WR[0] - 50, WR[1] + 50)), y = toY(clamp(b, BR[0] - 500, BR[1] + 500)); i ? c.lineTo(x, y) : c.moveTo(x, y); });
+  c.lineTo(toX(clamp(gd.w, WR[0] - 50, WR[1] + 50)), toY(clamp(gd.b, BR[0] - 500, BR[1] + 500))); c.stroke();
+  c.fillStyle = css("--mine"); c.beginPath(); c.arc(toX(gd.w), toY(gd.b), 8, 0, 7); c.fill();
+  c.restore();
+  // 손실 곡선
+  const v2 = $("gv2"); v2.textContent = "";
+  const hs = gd.hist.filter(isFinite), B2 = [70, 10, 730, 110];
+  const maxS = Math.max(10, gd.step), lmax = Math.log10(Math.max(...hs, 10)), lmin = Math.min(Math.log10(Math.max(Math.min(...hs), 1e-3)), lmax - 1);
+  const X2 = s => B2[0] + s / maxS * B2[2], Y2 = L => B2[1] + B2[3] - (Math.log10(Math.max(L, 1e-3)) - lmin) / (lmax - lmin) * B2[3];
+  el("rect", {x: B2[0], y: B2[1], width: B2[2], height: B2[3], fill: "var(--paper)", stroke: "var(--grid2)"}, v2);
+  for (let e = Math.ceil(lmin); e <= Math.floor(lmax); e++) { el("line", {x1: B2[0], x2: B2[0] + B2[2], y1: Y2(10 ** e), y2: Y2(10 ** e), stroke: "var(--grid)"}, v2); const t = el("text", {x: B2[0] - 6, y: Y2(10 ** e) + 4, "text-anchor": "end", "font-size": 11, fill: "var(--muted)"}, v2); t.textContent = "10" + (e === 0 ? "⁰" : e === 1 ? "¹" : e === 2 ? "²" : e === 3 ? "³" : e === 4 ? "⁴" : e === 5 ? "⁵" : "^" + e); }
+  [0, .25, .5, .75, 1].forEach(fr => { const t = el("text", {x: X2(fr * maxS), y: B2[1] + B2[3] + 15, "text-anchor": "middle", "font-size": 11, fill: "var(--muted)"}, v2); t.textContent = Math.round(fr * maxS); });
+  const xl = el("text", {x: B2[0] + B2[2] / 2, y: 152, "text-anchor": "middle", "font-size": 12, fill: "var(--ink)"}, v2); xl.textContent = "걸음 수";
+  let d = "", stride = Math.max(1, Math.floor(gd.hist.length / 800));
+  gd.hist.forEach((L, i) => { if (!isFinite(L) || (i % stride && i !== gd.hist.length - 1)) return; d += (d ? "L" : "M") + X2(i).toFixed(1) + "," + clamp(Y2(L), B2[1] - 2, B2[1] + B2[3]).toFixed(1); });
+  el("path", {d, fill: "none", stroke: "var(--line)", "stroke-width": 2}, v2);
+  if (ok) { const Lm = f.sse / f.n; el("line", {x1: B2[0], x2: B2[0] + B2[2], y1: Y2(Lm), y2: Y2(Lm), stroke: "var(--mean)", "stroke-dasharray": "5 4"}, v2); const t = el("text", {x: B2[0] + B2[2] - 4, y: Y2(Lm) - 5, "text-anchor": "end", "font-size": 11, fill: "var(--mean)"}, v2); t.textContent = "가장 작은 손실 " + fmt(Lm, 2); }
+  // 숫자
+  const L = gd.hist[gd.hist.length - 1];
+  $("d-step").textContent = gd.step.toLocaleString("ko-KR"); $("d-loss").textContent = isFinite(L) ? fmt(L, 3) : "발산";
+  $("d-wb").textContent = isFinite(gd.w) ? `${fmt(gd.w, 3)}, ${fmt(gd.b, 3)}` : "–"; $("d-ls").textContent = ok ? `${fmt(f.b, 3)}, ${fmt(f.a, 3)}` : "–";
+  let msg;
+  if (pts.length < 2) msg = "① 탭에서 점을 두 개 이상 찍어 주세요.";
+  else if (!isFinite(L) || L > 1e9) msg = "손실이 끝없이 커졌습니다(발산). 학습률이 너무 커서 골짜기를 넘어 튕겨 나간 것입니다. 학습률을 줄이고 처음으로 돌아가 보세요.";
+  else if (ok && Math.abs(gd.w - f.b) < 0.01 && Math.abs(gd.b - f.a) < 0.05) msg = `${gd.step.toLocaleString("ko-KR")}걸음 만에 최소제곱 답에 닿았습니다. 공식(식 8-3)과 경사하강법이 같은 직선을 찾습니다.`;
+  else if (gd.step === 0) msg = "w = 0, b = 0(수평선 y = 0)에서 출발합니다. 걸음마다 손실 언덕의 기울기 반대쪽으로 조금씩 움직입니다.";
+  else msg = `아직 가는 중입니다. 지금 손실은 가장 작은 손실의 ${fmt(L / (f.sse / f.n), 1)}배입니다.`;
+  $("d-read").textContent = msg;
+}
+
+/* ───────── ④ 평균으로의 회귀 ───────── */
+let fam = [];
+function rNew() { const r = +$("r-r").value; fam = []; for (let i = 0; i < 500; i++) { const z1 = randn(), z2 = randn(); fam.push([175 + 6 * z1, 175 + 6 * (r * z1 + Math.sqrt(1 - r * r) * z2)]); } }
+function rDraw() {
+  if ($("p-mean").hidden) return;
+  const v = $("rv"); v.textContent = "";
+  const B = [56, 16, 560, 390], R = [150, 200], ax = axes(v, B, R, R, [150, 160, 170, 180, 190, 200], [150, 160, 170, 180, 190, 200], "아버지 키(cm)", "아들 키(cm)");
+  const lay = el("g", {"clip-path": clip(v, "rclip", B)}, v);
+  const fx = fam.map(p => p[0]), sorted = [...fx].sort((a, b) => a - b), q90 = sorted[Math.floor(0.9 * fx.length)];
+  const f = fit1(fx, fam.map(p => p[1]));
+  el("line", {x1: ax.X(150), y1: ax.Y(150), x2: ax.X(200), y2: ax.Y(200), stroke: "var(--muted)", "stroke-width": 1.5, "stroke-dasharray": "6 4"}, lay);
+  el("rect", {x: ax.X(q90), y: B[1], width: ax.X(200) - ax.X(q90), height: B[3], fill: "var(--pt-soft)"}, lay);
+  fam.forEach(p => el("circle", {cx: ax.X(p[0]), cy: ax.Y(p[1]), r: 2.6, fill: p[0] >= q90 ? "var(--pt)" : "var(--muted)", "fill-opacity": p[0] >= q90 ? .9 : .35}, lay));
+  el("line", {x1: ax.X(150), x2: ax.X(200), y1: ax.Y(f.a + f.b * 150), y2: ax.Y(f.a + f.b * 200), stroke: "var(--line)", "stroke-width": 3}, lay);
+  const top = fam.filter(p => p[0] >= q90), mf = mean(top.map(p => p[0])), ms = mean(top.map(p => p[1])), mF = mean(fx), mS = mean(fam.map(p => p[1]));
+  el("circle", {cx: ax.X(mf), cy: ax.Y(ms), r: 8, fill: "var(--line)", stroke: "var(--paper)", "stroke-width": 2}, lay);
+  el("line", {x1: ax.X(mf), x2: ax.X(mf), y1: ax.Y(mf), y2: ax.Y(ms), stroke: "var(--line)", "stroke-width": 2}, lay);
+  el("circle", {cx: ax.X(mf), cy: ax.Y(mf), r: 5, fill: "none", stroke: "var(--ink)", "stroke-width": 2}, lay);
+  $("r-f").textContent = fmt(mf, 1) + "cm"; $("r-s").textContent = fmt(ms, 1) + "cm";
+  $("r-df").textContent = "+" + fmt(mf - mF, 1) + "cm"; $("r-ds").textContent = (ms - mS >= 0 ? "+" : "−") + fmt(Math.abs(ms - mS), 1) + "cm";
+  const keep = (ms - mS) / (mf - mF);
+  $("r-read").textContent = `키 큰 아버지는 평균보다 ${fmt(mf - mF, 1)}cm 컸지만, 그 아들은 ${fmt(ms - mS, 1)}cm만 큽니다. 차이의 약 ${Math.round(keep * 100)}%만 남았습니다(r = ${(+$("r-r").value).toFixed(2)}). 빨간 점(아들 평균)이 빈 원(아버지와 같은 키)보다 아래에 있는 만큼이 "평균으로의 회귀"입니다. 회귀선의 기울기는 ${fmt(f.b, 2)}입니다. 500쌍을 무작위로 뽑으므로 남는 비율은 r과 조금씩 다릅니다. 다시 뽑기를 여러 번 눌러 보세요.`;
+}
+$("r-r").addEventListener("input", () => { $("r-ro").textContent = (+$("r-r").value).toFixed(2); rNew(); rDraw(); });
+$("r-new").onclick = () => { rNew(); rDraw(); };
+$("r-ro").textContent = "0.39";
+
+/* 시작 */
+mSync(); mNew(); rNew(); sDraw(); gdReset();
+const mq = matchMedia("(prefers-color-scheme: dark)"); mq.addEventListener && mq.addEventListener("change", () => gdDraw(true));
+new MutationObserver(() => gdDraw(true)).observe(document.documentElement, {attributes: true, attributeFilter: ["data-theme"]});
+})();
+</script>
+</body></html>
