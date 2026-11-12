@@ -1,10 +1,11 @@
 # 12장 작년 이맘때처럼: 시계열 분석
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/yeonu69/bigdata-python-book/blob/main/ch12/12%EC%9E%A5_%EC%8B%9C%EA%B3%84%EC%97%B4_%EC%8B%A4%EC%8A%B5_colab_v3.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/yeonu69/bigdata-python-book/blob/main/ch12/12%EC%9E%A5_%EC%8B%9C%EA%B3%84%EC%97%B4_%EC%8B%A4%EC%8A%B5_colab_v4.ipynb)
 
 | 파일 | 설명 |
 |---|---|
-| [`12장_시계열_실습_colab_v3.ipynb`](12%EC%9E%A5_%EC%8B%9C%EA%B3%84%EC%97%B4_%EC%8B%A4%EC%8A%B5_colab_v3.ipynb) | 실습 노트북(v3, 지금 판). 본문 실습 12-5~12-9는 한국 전력 수요, 미니 프로젝트는 독일 전력입니다. 책의 코드와 번호가 같습니다. |
+| [`12장_시계열_실습_colab_v4.ipynb`](12%EC%9E%A5_%EC%8B%9C%EA%B3%84%EC%97%B4_%EC%8B%A4%EC%8A%B5_colab_v4.ipynb) | 실습 노트북(v4, 지금 판). 책에서 [코랩 실습] 상자로 줄인 실습 예제 12-2~12-4(☆), 12-7·12-9의 더 하기 단계, 미니 프로젝트 전체 코드가 여기 있습니다. 실행 결과가 들어 있고, [직접 해보기] 답은 맨 끝에 있습니다. 책의 번호와 같습니다. |
+| [`12장_시계열_실습_colab_v3.ipynb`](12%EC%9E%A5_%EC%8B%9C%EA%B3%84%EC%97%B4_%EC%8B%A4%EC%8A%B5_colab_v3.ipynb) | 이전 판 노트북(v3). |
 | [`12장_시계열_실습_colab_v2.ipynb`](12%EC%9E%A5_%EC%8B%9C%EA%B3%84%EC%97%B4_%EC%8B%A4%EC%8A%B5_colab_v2.ipynb) | 이전 판 노트북(본문 실습이 독일 전력). |
 | [`practice_ch12.py`](practice_ch12.py) | v3 노트북과 같은 코드를 파이썬 파일 하나로 모은 것(본문은 한국 전력, MP-k는 독일 전력 미니 프로젝트). `# ### 12-k` 조각 하나가 [파이썬 실습 12-k] 하나입니다. |
 | [시계열 시뮬레이터](https://yeonu69.github.io/bigdata-python-book/sim/ch12/) | 책 04절의 [시뮬레이터로 해 보기]. 웹 브라우저에서 이동평균과 계절 지수, 자기상관과 차분, 지수평활, 기준선 겨루기와 오차(MAE·MAPE)를 직접 움직여 봅니다. 책의 항공 승객과 한국 전력 데이터로 계산한 값이 들어 있습니다. 파일: [`sim/ch12/index.html`](../sim/ch12/index.html) |
