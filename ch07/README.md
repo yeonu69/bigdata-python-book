@@ -1,10 +1,11 @@
 # 7장 끼리끼리 모으기: 군집화
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/yeonu69/bigdata-python-book/blob/main/ch07/7%EC%9E%A5_%EA%B5%B0%EC%A7%91%ED%99%94_%EC%8B%A4%EC%8A%B5_colab_v3.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/yeonu69/bigdata-python-book/blob/main/ch07/7%EC%9E%A5_%EA%B5%B0%EC%A7%91%ED%99%94_%EC%8B%A4%EC%8A%B5_colab.ipynb)
 
 | 파일 | 설명 |
 |---|---|
-| [`7장_군집화_실습_colab_v3.ipynb`](7%EC%9E%A5_%EA%B5%B0%EC%A7%91%ED%99%94_%EC%8B%A4%EC%8A%B5_colab_v3.ipynb) | 실습 노트북. 책의 [파이썬 실습], 미니 프로젝트, 연습문제 정답 코드가 책과 같은 번호로 들어 있습니다. |
+| [`7장_군집화_실습_colab.ipynb`](7%EC%9E%A5_%EA%B5%B0%EC%A7%91%ED%99%94_%EC%8B%A4%EC%8A%B5_colab.ipynb) | 실습 노트북(책 개정판). 책의 [예제] Ⓑ 코드, [실습 예제 7-1~7-11], 미니 프로젝트, 연습문제 정답 코드가 책과 같은 번호로 들어 있습니다. ☆ 표시 [실습 예제 7-7~7-11]은 **코랩 실습**이라 책에는 할 일·단계·확인할 결과만 있고, 코드와 풀이는 이 노트북에만 있습니다. 책 [표 7-6]의 QR 코드가 이 파일을 엽니다. |
+| [`7장_군집화_실습_colab_v3.ipynb`](7%EC%9E%A5_%EA%B5%B0%EC%A7%91%ED%99%94_%EC%8B%A4%EC%8A%B5_colab_v3.ipynb) | 이전 판 노트북([파이썬 실습 7-k] 번호). `practice_ch07.py`와 같은 코드입니다. |
 | [`practice_ch07.py`](practice_ch07.py) | 같은 코드를 파이썬 파일 하나로 모은 것. `# ### 7-k` 조각 하나가 [파이썬 실습 7-k] 하나입니다. |
 | [군집화 시뮬레이터](https://yeonu69.github.io/bigdata-python-book/sim/ch07/) | 책 04절의 [시뮬레이터로 해 보기]. 웹 브라우저에서 거리와 표준화, k-평균의 배정과 갱신, 엘보우와 실루엣, 지진 세 유형 나누기를 직접 움직여 봅니다. 책의 지진 데이터에서 뽑은 1,500건과 책의 숫자가 들어 있습니다. 파일: [`sim/ch07/index.html`](../sim/ch07/index.html) |
 
