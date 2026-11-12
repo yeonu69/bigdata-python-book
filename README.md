@@ -28,7 +28,7 @@
 | 10장 | 스무고개와 집단지성: 결정나무와 앙상블 | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/yeonu69/bigdata-python-book/blob/main/ch10/10%EC%9E%A5_%ED%8A%B8%EB%A6%AC%EC%95%99%EC%83%81%EB%B8%94_%EC%8B%A4%EC%8A%B5_colab_v2.ipynb) | [ch10](ch10/) |
 | 11장 | 리뷰 속 마음 읽기: 텍스트 분석 | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/yeonu69/bigdata-python-book/blob/main/ch11/11%EC%9E%A5_%ED%85%8D%EC%8A%A4%ED%8A%B8%EB%B6%84%EC%84%9D_%EC%8B%A4%EC%8A%B5_colab_v2.ipynb) | [ch11](ch11/) |
 | 12장 | 작년 이맘때처럼: 시계열 분석 | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/yeonu69/bigdata-python-book/blob/main/ch12/12%EC%9E%A5_%EC%8B%9C%EA%B3%84%EC%97%B4_%EC%8B%A4%EC%8A%B5_colab_v2.ipynb) | [ch12](ch12/) |
-| 13장 | 몸을 가진 AI: 센서 데이터로 읽는 피지컬 AI | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/yeonu69/bigdata-python-book/blob/main/ch13/13%EC%9E%A5_%ED%94%BC%EC%A7%80%EC%BB%ACAI_%EC%8B%A4%EC%8A%B5_colab_v2.ipynb) | [ch13](ch13/) |
+| 13장 | 몸을 가진 AI: 센서 데이터로 읽는 피지컬 AI | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/yeonu69/bigdata-python-book/blob/main/ch13/13%EC%9E%A5_%ED%94%BC%EC%A7%80%EC%BB%ACAI_%EC%8B%A4%EC%8A%B5_colab_v6.ipynb) | [ch13](ch13/) |
 
 각 장 폴더의 README에 그 장이 쓰는 데이터 파일과 출처를 적어 두었습니다.
 
