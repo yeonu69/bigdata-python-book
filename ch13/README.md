@@ -1,10 +1,10 @@
 # 13장 몸을 가진 AI: 센서 데이터로 읽는 피지컬 AI
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/yeonu69/bigdata-python-book/blob/main/ch13/13%EC%9E%A5_%ED%94%BC%EC%A7%80%EC%BB%ACAI_%EC%8B%A4%EC%8A%B5_colab_v2.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/yeonu69/bigdata-python-book/blob/main/ch13/13%EC%9E%A5_%ED%94%BC%EC%A7%80%EC%BB%ACAI_%EC%8B%A4%EC%8A%B5_colab_v6.ipynb)
 
 | 파일 | 설명 |
 |---|---|
-| [`13장_피지컬AI_실습_colab_v2.ipynb`](13%EC%9E%A5_%ED%94%BC%EC%A7%80%EC%BB%ACAI_%EC%8B%A4%EC%8A%B5_colab_v2.ipynb) | 실습 노트북. 책의 [파이썬 실습], 미니 프로젝트, 연습문제 정답 코드가 책과 같은 번호로 들어 있습니다. |
+| [`13장_피지컬AI_실습_colab_v6.ipynb`](13%EC%9E%A5_%ED%94%BC%EC%A7%80%EC%BB%ACAI_%EC%8B%A4%EC%8A%B5_colab_v6.ipynb) | 실습 노트북(v6). 책의 [실습 예제]·[알고리즘 따라 하기]와 책에는 문제만 있는 [코랩 실습 13-5, 13-6 ❻, 13-7~13-11]의 코드가 책과 같은 번호로 들어 있습니다. |
 | [`practice_ch13.py`](practice_ch13.py) | 같은 코드를 파이썬 파일 하나로 모은 것. `# ### 13-k` 조각 하나가 [파이썬 실습 13-k] 하나입니다. |
 | [피지컬 AI 시뮬레이터](https://yeonu69.github.io/bigdata-python-book/sim/ch13/) | 책 04절의 [시뮬레이터로 해 보기]. 웹 브라우저에서 샘플링과 FFT, 중력과 기울기, 사람 단위로 나누기(데이터 누수), 출력과 고장을 직접 움직여 봅니다. 책의 동작 인식(HAR)·공장 기계(AI4I) 데이터로 계산한 값이 들어 있습니다. 파일: [`sim/ch13/index.html`](../sim/ch13/index.html) |
 
