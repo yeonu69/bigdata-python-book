@@ -1,10 +1,10 @@
 # 6장 파일에서, 웹에서: 데이터 불러오기
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/yeonu69/bigdata-python-book/blob/main/ch06/6%EC%9E%A5_%EB%8D%B0%EC%9D%B4%ED%84%B0%EB%B6%88%EB%9F%AC%EC%98%A4%EA%B8%B0_%EC%8B%A4%EC%8A%B5_colab.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/yeonu69/bigdata-python-book/blob/main/ch06/6%EC%9E%A5_%EB%8D%B0%EC%9D%B4%ED%84%B0%EB%B6%88%EB%9F%AC%EC%98%A4%EA%B8%B0_%EC%8B%A4%EC%8A%B5_colab_v2.ipynb)
 
 | 파일 | 설명 |
 |---|---|
-| [`6장_데이터불러오기_실습_colab.ipynb`](6%EC%9E%A5_%EB%8D%B0%EC%9D%B4%ED%84%B0%EB%B6%88%EB%9F%AC%EC%98%A4%EA%B8%B0_%EC%8B%A4%EC%8A%B5_colab.ipynb) | 실습 노트북. 책의 [파이썬 실습], 미니 프로젝트, 연습문제 정답 코드가 책과 같은 번호로 들어 있습니다. |
+| [`6장_데이터불러오기_실습_colab_v2.ipynb`](6%EC%9E%A5_%EB%8D%B0%EC%9D%B4%ED%84%B0%EB%B6%88%EB%9F%AC%EC%98%A4%EA%B8%B0_%EC%8B%A4%EC%8A%B5_colab_v2.ipynb) | 실습 노트북(v2). 책의 [실습 예제] 6-1~6-10, 미니 프로젝트, 연습문제 정답이 책과 같은 번호로 들어 있습니다. 책에 문제만 실은 🧪 코랩 실습(☆ 6-7~6-10, 6-3·6-6의 ❺ 그래프, 미니 프로젝트 1·2단계)의 코드와 실행 결과도 여기에 있습니다. |
 | [`practice_ch06.py`](practice_ch06.py) | 같은 코드를 파이썬 파일 하나로 모은 것. `# ### 6-k` 조각 하나가 [파이썬 실습 6-k] 하나입니다. |
 | [데이터 불러오기 시뮬레이터](https://yeonu69.github.io/bigdata-python-book/sim/ch06/) | 책 04절의 [시뮬레이터로 해 보기]. 웹 브라우저에서 인코딩(글자와 바이트), 파일 크기와 읽는 시간 어림하기, 엑셀 12개 합치기와 행 수 검산·24시 바꾸기, 연습 사이트를 예의 바르게 돌며 모으기를 직접 움직여 봅니다. 책의 에어코리아 2025년 엑셀과 연습 사이트 숫자가 들어 있습니다. 파일: [`sim/ch06/index.html`](../sim/ch06/index.html) |
 
